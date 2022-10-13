@@ -3,7 +3,7 @@ from rich import print
 from datetime import datetime
 import skyfield
 from Telescope import *
-from subprocess import Popen
+from subprocess import Popen, DEVNULL
 
 
 class Prompt(Cmd):
@@ -39,34 +39,37 @@ class Prompt(Cmd):
         else:
 
             # initialize time
-            self.init_time()
+            self.__init_time()
 
             # initialize file
-            self.init_file()
+            self.__init_file()
 
             # start necessary software
-            self.launch_software()
+            self.__launch_software()
 
             print("Ready")
             return False
 
-    def init_file(self):
+    def __init_file(self):
         print("Load planets file")
         self.Telescope = Telescope(self.time)
 
-    def init_time(self):
+    def __init_time(self):
         self.ts = load.timescale()
         self.time = self.ts.now()
         print("You start observation at : " + str(self.time.astimezone(datetime.now().astimezone().tzinfo)))
         self.has_started = True
 
-    def launch_software(self):
+    @staticmethod
+    def __launch_software():
+
         # Popen('C:\\Windows\\System32\\notepad.exe')
         Popen('C:\\Program Files (x86)\\Officina Stellare Srl\\OSBusSetup\\OSBusController.exe')
-        Popen('C:\\Program Files (x86)\\Astrometric\\Maestro\\Maestro.exe', shell=True)
+        Popen('C:\\Program Files (x86)\\Astrometric\\Maestro\\Maestro.exe', stdout=DEVNULL)
         Popen('C:\\Program Files (x86)\\Software Bisque\\TheSkyX Professional Edition\\TheSkyX.exe')
 
     def do_goTo(self, arg):
+
         print(arg)
         args = "bloup"
         if len(args) == 1:
