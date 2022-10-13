@@ -61,7 +61,7 @@ class Prompt(Cmd):
         self.has_started = True
 
     def launch_software(self):
-        Popen('C:\\Program Files (x86)\\Officina Stellare Srl\\OSBusSetup\\OSBus Controller')
+        Popen('C:\\Program Files (x86)\\Officina Stellare Srl\\OSBusSetup\\OSBus Controller.exe')
 
     def do_goTo(self, arg):
         print(arg)
