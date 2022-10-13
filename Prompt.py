@@ -62,8 +62,8 @@ class Prompt(Cmd):
 
     def launch_software(self):
         # Popen('C:\\Windows\\System32\\notepad.exe')
-        Popen('C:\\Program Files (x86)\\Officina Stellare Srl\\OSBusSetup\\OSBusController.exe', shell=False)
-        Popen('C:\\Program Files (x86)\\Astrometric\\Maestro\\Maestro.exe')
+        Popen('C:\\Program Files (x86)\\Officina Stellare Srl\\OSBusSetup\\OSBusController.exe')
+        Popen('C:\\Program Files (x86)\\Astrometric\\Maestro\\Maestro.exe', shell=False)
         Popen('C:\\Program Files (x86)\\Software Bisque\\TheSkyX Professional Edition\\TheSkyX.exe')
 
     def do_goTo(self, arg):
