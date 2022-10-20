@@ -73,6 +73,6 @@ class Prompt(Cmd):
         [object name] [number of image]x[duration] can be repated for each filter'''
 
         arg_string = str(arg)
-        result = run("py ..\\automat_0.1\\ScriptSkyX\\run_target-2.py " + arg_string)
-        print(result)
+        Popen("py ..\\automat_0.1\\ScriptSkyX\\run_target-2.py " + arg_string)
+    
         return False
