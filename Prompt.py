@@ -2,8 +2,8 @@ from cmd import Cmd
 from rich import print
 from datetime import datetime
 import skyfield
-from Telescope import *
-from subprocess import Popen, DEVNULL
+from skyfield.api import load
+from subprocess import Popen, DEVNULL, run
 
 
 class Prompt(Cmd):
@@ -52,7 +52,6 @@ class Prompt(Cmd):
 
     def __init_file(self):
         print("Load planets file")
-        self.Telescope = Telescope(self.time)
 
     def __init_time(self):
         self.ts = load.timescale()
@@ -68,19 +67,11 @@ class Prompt(Cmd):
         Popen('C:\\Program Files (x86)\\Astrometric\\Maestro\\Maestro.exe')
         Popen('C:\\Program Files (x86)\\Software Bisque\\TheSkyX Professional Edition\\TheSkyX.exe')
 
-    def do_goTo(self, arg):
+    def do_target(self, arg):
 
-        print(arg)
-        args = "bloup"
-        if len(args) == 1:
-            name = args[0]
-            self.Telescope.goto_named(args[0])
-            pass
-        elif len(args) == 2:
-            # TODO: use coordinates
-            pass
-        else:
-            print("Wrong argument number\n")
-            print("format: goTo [celestial object name]\n")
-            print("or goTo [celestial coord 1] [celestial coord 2]")
-        pass
+        '''Move the telescope to object and take a number of image with a duration time
+        [object name] [number of image]x[duration] can be repated for each filter'''
+
+        arg_string = str(arg)
+        run(["py", "\\home\\Desktop\\automat_0.1\\ScriptSkyX\\run_target-2.py " + arg_string])
+        return False
