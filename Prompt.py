@@ -74,6 +74,6 @@ class Prompt(Cmd):
 
         arg_string = str(arg)
         print(arg)
-        run("py ..\\automat_0.1\\ScriptSkyX\\run_target-2.py" + arg_string)
+        run("py ..\\automat_0.1\\ScriptSkyX\\run_target-2.py " + arg_string)
 
         return False
