@@ -1,5 +1,4 @@
 from cmd import Cmd
-from rich import print
 from datetime import datetime
 import skyfield
 from skyfield.api import load
@@ -12,23 +11,24 @@ class Prompt(Cmd):
 
     has_started = False
 
-    # dictionary that contain all debris
+    # dictionary that contain all debris and all satellites
     debris = {}
+    satellites = {}
 
     @staticmethod
-    def do_exit(self):
+    def do_exit(arg):
 
-        '''exit the application.'''
+        '''\nexit the application.\n'''
 
         print("closing all app")
         return True
 
     def do_start(self, arg):
 
-        '''Initialize all Telesto hardware and software for communication'''
+        '''\nInitialize all Telesto hardware and software for communication\n'''
 
         if len(arg) > 0:
-            print("Start don't take argument")
+            print("\nStart don't take argument\n")
             return False
 
         print("Running Skyfield " + skyfield.__version__ + "\n")
@@ -46,30 +46,63 @@ class Prompt(Cmd):
             self.__init_file()
 
             # start necessary software
-            #self.__launch_software()
+            # self.__launch_software()
 
             self.has_started = True
-            print("Ready")
+            print("\nReady\n")
             return False
 
     def __init_file(self):
-        # list of url of debris file
-        debris_url = ["https://celestrak.org/NORAD/elements/gp.php?GROUP=iridium-33-debris&FORMAT=tle",
-                      "https://celestrak.org/NORAD/elements/gp.php?GROUP=cosmos-2251-debris&FORMAT=tle",
-                      "https://celestrak.org/NORAD/elements/gp.php?GROUP=1982-092&FORMAT=tle",
-                      "https://celestrak.org/NORAD/elements/gp.php?GROUP=1982-092&FORMAT=tle"]
+        # Read URLs from text files
+        debris_urls, satellites_urls = self.__read_url()
 
         # load each files then append it in a general dictionary
-        print("Load debris file\n")
-        for url in debris_url:
-            temp_debris = load.tle_file(url, reload=True)
-            self.debris.update({debris.model.satnum: debris for debris in temp_debris})
-        print("Loaded", len(self.debris), "debris")
+        print("Load debris files\n")
+        self.__load_file("deb", debris_urls)
+
+        print("Load satellites files")
+        self.__load_file("sat", debris_urls)
+
+        print("Loaded", len(self.debris)+len(self.satellites), "debris and satellites")
+
+    @staticmethod
+    def __read_url():
+
+        debris_url_file = open('debris_url.txt', 'r')
+        satellites_url_file = open('satellites_url.txt', 'r')
+
+        # read debris url
+        urls = debris_url_file.readlines()
+        debris_url = []
+        for url in urls:
+            debris_url.append(url)
+
+        # read satellites url
+        urls = satellites_url_file.readlines()
+        satellites_url = []
+        for url in urls:
+            satellites_url.append(url)
+
+        return debris_url, satellites_url
+
+    def __load_file(self, url_type, urls):
+
+        for url in urls:
+            temp = load.tle_file(url, reload=True)
+            if url_type == "deb":
+                self.debris.update({debris.model.satnum: debris for debris in temp})
+            elif url_type == "sat":
+                self.satellites.update({sat.name: sat for sat in temp})
 
     def __init_time(self):
         self.ts = load.timescale()
         self.time = self.ts.now()
         print("You start observation at : " + str(self.time.astimezone(datetime.now().astimezone().tzinfo)))
+
+    def __check_start(self):
+        if not self.has_started:
+            print("\nlaunch starting procedure first\n")
+            return self.has_started
 
     @staticmethod
     def __launch_software():
@@ -80,22 +113,84 @@ class Prompt(Cmd):
 
     def do_target_celestial_body(self, arg):
 
-        '''Move the telescope to the body and take a number of image with a duration time
-        target_celestial_body [object name] [number of image]x[duration] can be repated for each filter'''
+        '''\nMove the telescope to the body and take a number of image with a duration time
+        target_celestial_body [object name] [number of image]x[duration] can be repated for each filter\n'''
 
-        if not self.has_started:
-            print("launch starting procedure first\n")
+        if not self.__check_start():
             return False
-        arg_string = str(arg)
-        print(arg)
-        run("py ..\\automat_0.1\\ScriptSkyX\\run_target-2.py " + arg_string)
+
+        run("py ..\\automat_0.1\\ScriptSkyX\\run_target-2.py " + arg)
 
         return False
 
     def do_target_debris(self, arg):
 
-        '''Move the telescope to debris
-        target_debris [catalog number]'''
-                
+        '''\nMove the telescope to debris
+        target_debris [catalog number]\n'''
 
+        if not self.__check_start():
+            return False
 
+        args = arg.split()
+        if len(args) != 1:
+            print("\nInvalid argument number: target_debris [catalog number]\n")
+            return False
+
+        if int(args[0]) not in self.debris:
+            print("\nInvalid target: please use an existing target\n")
+            return False
+
+    def do_target_satellites(self, arg):
+        '''\nMove the telescope to debris
+        target_satellites [name]\n'''
+
+        if not self.__check_start():
+            return False
+
+        args = arg.split()
+        if len(args) != 1:
+            print("\nInvalid argument number: target_debris [catalog number]\n")
+            return False
+
+        if args[0] not in self.satellites:
+            print("\nInvalid target: please use an existing target\n")
+            return False
+
+    def do_add_catalog(self, arg):
+
+        '''\nadd an url to download TLE file for debris or satellites
+        add_catalog [type] [url]
+        type could be sat or deb\n'''
+
+        args = arg.split()
+        if len(args) != 2:
+            print("\nInvalid argument number: add_catalog [type] [url]\n")
+            return False
+
+        if not self.__write_url(args[0], args[1]):
+            return False
+
+        if self.has_started:
+            self.__load_file(args[0], args[1])
+
+        return False
+
+    @staticmethod
+    def __write_url(url_type, url):
+
+        if url_type == "sat":
+            file = open('satellites_url.txt', 'rw')
+        elif url_type == "deb":
+            file = open('debris_url.txt', 'rw')
+        else:
+            print("Invalid argument: type should be deb or sat")
+            return False
+
+        lines = file.readlines()
+
+        if url in lines:
+            print("Invalid URL: The URL already exits")
+            return False
+
+        file.writelines(url + '\n')
+        file.close()
