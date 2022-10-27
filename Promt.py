@@ -13,9 +13,6 @@ class MyTestCase(unittest.TestCase):
     def test_target_debris_on_non_existent_debris(self):
         self.assertFalse(self.p.do_target_debris("1 2"))
 
-    def test_target_satellites_on_wrong_argument_number(self):
-        self.assertFalse(self.p.do_target_satellites("IRIDIUM 33"))
-
     def test_target_satellites_on_non_existing_satllites(self):
         self.assertFalse(self.p.do_target_satellites("plop"))
 

@@ -147,12 +147,7 @@ class Prompt(Cmd):
         if not self.__check_start():
             return False
 
-        args = arg.split()
-        if len(args) != 1:
-            print("\nInvalid argument number: target_debris [catalog number]\n")
-            return False
-
-        if args[0] not in self.satellites:
+        if arg not in self.satellites:
             print("\nInvalid target: please use an existing target\n")
             return False
 
