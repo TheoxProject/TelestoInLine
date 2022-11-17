@@ -13,7 +13,6 @@ class Prompt(Cmd):
     has_started = False
 
     # dictionary that contain all debris and all satellites
-    debris = {}
     satellites = {}
     telescope = None
     location = [46.3013889, 6.133611111111112]  # raw location, simpler than automatically get it
@@ -67,7 +66,7 @@ class Prompt(Cmd):
         print("Load satellites files")
         self.__load_file("sat", debris_urls)
 
-        print("Loaded", len(self.debris)+len(self.satellites), "debris and satellites")
+        print("Loaded", len(self.satellites), "debris and satellites")
 
     @staticmethod
     def __read_url():
@@ -94,7 +93,7 @@ class Prompt(Cmd):
         for url in urls:
             temp = load.tle_file(url, reload=True)
             if url_type == "deb":
-                self.debris.update({debris.model.satnum: debris for debris in temp})
+                self.satellites.update({debris.model.satnum: debris for debris in temp})
             elif url_type == "sat":
                 self.satellites.update({sat.model.satnum: sat for sat in temp})
 
@@ -179,11 +178,13 @@ class Prompt(Cmd):
 
     @staticmethod
     def __write_url(url_type, url):
-
+        name = ''
         if url_type == "sat":
-            file = open('satellites_url.txt', 'rw')
+            name = 'satellites_url.txt'
+            file = open(name, 'r')
         elif url_type == "deb":
-            file = open('debris_url.txt', 'rw')
+            name = 'debris_url.txt'
+            file = open(name, 'r')
         else:
             print("Invalid argument: type should be deb or sat")
             return False
@@ -193,6 +194,9 @@ class Prompt(Cmd):
         if url in lines:
             print("Invalid URL: The URL already exits")
             return False
+        file.close()
 
+        file = open(name, 'w')
         file.writelines(url + '\n')
         file.close()
+        print("Url: "+url+" correctly written")
