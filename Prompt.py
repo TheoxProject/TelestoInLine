@@ -17,7 +17,7 @@ class Prompt(Cmd):
     satellites = {}
     telescope = None
     location = [46.3013889, 6.133611111111112]  # raw location, simpler than automatically get it
-    bluffton = skyfield.api.wgs84.latlong(location[0], location[1])
+    bluffton = skyfield.api.wgs84.latlon(location[0], location[1])
 
     @staticmethod
     def do_exit(arg):
