@@ -3,7 +3,6 @@ from datetime import datetime
 import skyfield
 from skyfield.api import load
 from subprocess import Popen, DEVNULL, run
-from alpaca import telescope
 from PySkyX_ks import *
 
 
