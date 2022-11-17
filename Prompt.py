@@ -50,7 +50,7 @@ class Prompt(Cmd):
             self.__init_file()
 
             # start necessary software
-            # self.__launch_software()
+            self.__launch_software()
 
             self.has_started = True
             print("\nReady\n")
