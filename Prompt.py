@@ -139,7 +139,7 @@ class Prompt(Cmd):
             print("\nInvalid argument number: target_satellites [catalog number]\n")
             return False
 
-        if int(args[0]) not in self.debris:
+        if int(args[0]) not in self.satellites:
             print("\nInvalid target: please use an existing target\n")
             return False
 
