@@ -3,6 +3,8 @@ from datetime import datetime
 import skyfield
 from skyfield.api import load
 from subprocess import Popen, DEVNULL, run
+from alpaca import telescope
+from PySkyX_ks import *
 
 
 class Prompt(Cmd):
@@ -14,6 +16,9 @@ class Prompt(Cmd):
     # dictionary that contain all debris and all satellites
     debris = {}
     satellites = {}
+    telescope = None
+    location = [46.3013889, 6.133611111111112]  # raw location, simpler than automatically get it
+    bluffton = skyfield.api.wgs84.latlong(location[0], location[1])
 
     @staticmethod
     def do_exit(arg):
@@ -40,7 +45,7 @@ class Prompt(Cmd):
         else:
 
             # initialize time
-            self.__init_time()
+            self._init_time()
 
             # initialize file
             self.__init_file()
@@ -92,14 +97,14 @@ class Prompt(Cmd):
             if url_type == "deb":
                 self.debris.update({debris.model.satnum: debris for debris in temp})
             elif url_type == "sat":
-                self.satellites.update({sat.name: sat for sat in temp})
+                self.satellites.update({sat.model.satnum: sat for sat in temp})
 
-    def __init_time(self):
+    def _init_time(self):
         self.ts = load.timescale()
         self.time = self.ts.now()
         print("You start observation at : " + str(self.time.astimezone(datetime.now().astimezone().tzinfo)))
 
-    def __check_start(self):
+    def _check_start(self):
         if not self.has_started:
             print("\nlaunch starting procedure first\n")
             return self.has_started
@@ -116,40 +121,43 @@ class Prompt(Cmd):
         '''\nMove the telescope to the body and take a number of image with a duration time
         target_celestial_body [object name] [number of image]x[duration] can be repated for each filter\n'''
 
-        if not self.__check_start():
+        if not self._check_start():
             return False
 
         run("py ..\\automat_0.1\\ScriptSkyX\\run_target-2.py " + arg)
 
         return False
 
-    def do_target_debris(self, arg):
+    def do_target_satellites(self, arg):
 
         '''\nMove the telescope to debris
         target_debris [catalog number]\n'''
 
-        if not self.__check_start():
+        if not self._check_start():
             return False
 
         args = arg.split()
         if len(args) != 1:
-            print("\nInvalid argument number: target_debris [catalog number]\n")
+            print("\nInvalid argument number: target_satellites [catalog number]\n")
             return False
 
         if int(args[0]) not in self.debris:
             print("\nInvalid target: please use an existing target\n")
             return False
 
-    def do_target_satellites(self, arg):
-        '''\nMove the telescope to debris
-        target_satellites [name]\n'''
+        slew(arg)
 
-        if not self.__check_start():
-            return False
+    def slew(self, arg):
+        target = self.satellites[arg]
+        difference = target - self.bluffton
+        topocentric = difference.at(self.ts.now())
+        coordinates_ra_dec = topocentric.radec(epoch='date')
+        coordinates_alt_az = topocentric.altaz()
 
-        if arg not in self.satellites:
-            print("\nInvalid target: please use an existing target\n")
-            return False
+        if coordinates_alt_az[0].degrees < 30:
+            print("Target high enough in the sky")
+            return
+        slewToCoords((coordinates_ra_dec[0], coordinates_ra_dec[1]), target.name)
 
     def do_add_catalog(self, arg):
 
