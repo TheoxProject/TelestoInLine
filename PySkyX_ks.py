@@ -28,7 +28,6 @@ def slewToCoords(coords,name):
     ra = coords[0]
     dec = coords[1]
 
-
     print("Slewing to "+ra+" "+ dec)
     if TSXSend("sky6RASCOMTele.IsParked()") == "true":
         print("     NOTE: Unparking mount.")

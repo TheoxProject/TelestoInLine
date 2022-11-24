@@ -48,9 +48,9 @@ class Prompt(Cmd):
             print("already started")
             return False
 
-        #if preRun() == "Fail":
-        #    print("bad configuration please fix config before start")
-        #    return True
+        if preRun() == "Fail":
+            print("bad configuration please fix config before start")
+            return True
 
         print("Running Skyfield " + skyfield.__version__ + "\n")
         # check current version
@@ -69,9 +69,6 @@ class Prompt(Cmd):
             # start necessary software
             # TODO: remove comment
             #self._launch_software()
-
-            # Connect Cam
-            #camConnect("Imager")
 
             self.has_started = True
             print("\nReady\n")
