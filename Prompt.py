@@ -180,8 +180,8 @@ class Prompt(Cmd):
         coordinates_ra_dec = topocentric.radec(epoch='date')
         coordinates_alt_az = topocentric.altaz()
 
-        if coordinates_alt_az[0].degrees < 30:
-            print("Target not high enough in the sky")
+        if coordinates_alt_az[0].degrees < 0:
+            print("Target under horizons")
             return
         print(coordinates_ra_dec[0], coordinates_ra_dec[1])
         slewToCoords((coordinates_ra_dec[0], coordinates_ra_dec[1]), target.name)
