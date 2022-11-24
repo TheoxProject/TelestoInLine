@@ -18,12 +18,26 @@ class Prompt(Cmd):
     location = [46.3013889, 6.133611111111112]  # raw location, simpler than automatically get it
     bluffton = skyfield.api.wgs84.latlon(location[0], location[1])
 
-    @staticmethod
-    def do_exit(arg):
+    def do_exit(self, arg):
 
         '''\nexit the application.\n'''
 
-        print("closing all app")
+        print("Parking Telescope ...\n")
+        stopGuiding()
+        hardPark()
+
+        print("Disconnect Cam...\n")
+        camDisconnect("Imager")
+
+        print("closing all app...\n")
+        # TODO: remove comment
+        self.OSBus.terminate()
+        self.Maestro.terminate()
+        self.SkyX.terminate()
+
+        print("App closed")
+
+
         return True
 
     def do_start(self, arg):
@@ -33,6 +47,10 @@ class Prompt(Cmd):
         if len(arg) > 0:
             print("\nStart don't take argument\n")
             return False
+
+        if preRun() == "Fail":
+            print("bad configuration please fix config before start")
+            return True
 
         print("Running Skyfield " + skyfield.__version__ + "\n")
         # check current version
@@ -46,30 +64,35 @@ class Prompt(Cmd):
             self._init_time()
 
             # initialize file
-            self.__init_file()
+            self._init_file()
+            print(self.satellites)
 
             # start necessary software
-            self.__launch_software()
+            #TODO: remove comment
+            #self._launch_software()
+
+            # Connect Cam
+            camConnect("Imager")
 
             self.has_started = True
             print("\nReady\n")
             return False
 
-    def __init_file(self):
+    def _init_file(self):
         # Read URLs from text files
-        debris_urls, satellites_urls = self.__read_url()
+        debris_urls, satellites_urls = self._read_url()
 
         # load each files then append it in a general dictionary
         print("Load debris files\n")
-        self.__load_file("deb", debris_urls)
+        self._load_file("deb", debris_urls)
 
         print("Load satellites files")
-        self.__load_file("sat", debris_urls)
+        self._load_file("sat", debris_urls)
 
         print("Loaded", len(self.satellites), "debris and satellites")
 
     @staticmethod
-    def __read_url():
+    def _read_url():
 
         debris_url_file = open('debris_url.txt', 'r')
         satellites_url_file = open('satellites_url.txt', 'r')
@@ -88,7 +111,7 @@ class Prompt(Cmd):
 
         return debris_url, satellites_url
 
-    def __load_file(self, url_type, urls):
+    def _load_file(self, url_type, urls):
 
         for url in urls:
             temp = load.tle_file(url, reload=True)
@@ -105,25 +128,27 @@ class Prompt(Cmd):
     def _check_start(self):
         if not self.has_started:
             print("\nlaunch starting procedure first\n")
-            return self.has_started
+        return self.has_started
 
-    @staticmethod
-    def __launch_software():
+    def _launch_software(self):
 
-        Popen('C:\\Program Files (x86)\\Officina Stellare Srl\\OSBusSetup\\OSBusController.exe', stdout=DEVNULL)
-        Popen('C:\\Program Files (x86)\\Astrometric\\Maestro\\Maestro.exe')
-        Popen('C:\\Program Files (x86)\\Software Bisque\\TheSkyX Professional Edition\\TheSkyX.exe')
+        self.OSBus = Popen('C:\\Program Files (x86)\\Officina Stellare Srl\\OSBusSetup\\OSBusController.exe', stdout=DEVNULL)
+        self.Maestro = Popen('C:\\Program Files (x86)\\Astrometric\\Maestro\\Maestro.exe')
+        self.SkyX = Popen('C:\\Program Files (x86)\\Software Bisque\\TheSkyX Professional Edition\\TheSkyX.exe')
 
     def do_target_celestial_body(self, arg):
 
-        '''\nMove the telescope to the body and take a number of image with a duration time
-        target_celestial_body [object name] [number of image]x[duration] can be repated for each filter\n'''
+        '''\nMove the telescope to the body
+        target_celestial_body [object name]\n'''
 
         if not self._check_start():
             return False
 
-        run("py ..\\automat_0.1\\ScriptSkyX\\run_target-2.py " + arg)
+        if targExists(arg) == "No":
+            print("Enter a valid target")
+            return False
 
+        slew(arg)
         return False
 
     def do_target_satellites(self, arg):
@@ -143,9 +168,9 @@ class Prompt(Cmd):
             print("\nInvalid target: please use an existing target\n")
             return False
 
-        slew(arg)
+        self._slew_coord(arg)
 
-    def slew(self, arg):
+    def _slew_coord(self, arg):
         target = self.satellites[arg]
         difference = target - self.bluffton
         topocentric = difference.at(self.ts.now())
@@ -153,7 +178,7 @@ class Prompt(Cmd):
         coordinates_alt_az = topocentric.altaz()
 
         if coordinates_alt_az[0].degrees < 30:
-            print("Target high enough in the sky")
+            print("Target not high enough in the sky")
             return
         slewToCoords((coordinates_ra_dec[0], coordinates_ra_dec[1]), target.name)
 
@@ -168,16 +193,29 @@ class Prompt(Cmd):
             print("\nInvalid argument number: add_catalog [type] [url]\n")
             return False
 
-        if not self.__write_url(args[0], args[1]):
+        if not self._write_url(args[0], args[1]):
             return False
 
         if self.has_started:
-            self.__load_file(args[0], args[1])
+            self._load_file(args[0], args[1])
 
         return False
 
+    def do_take_picture(self, arg):
+
+        '''\nTake a picture with selected filter\n'''
+
+        return False
+
+    def do_dither(self):
+        '''\nTake a series of images of a single field'''
+        stopGuiding()
+        dither()
+        # TODO: understand how this shit works
+        # startGuiding()
+
     @staticmethod
-    def __write_url(url_type, url):
+    def _write_url(url_type, url):
         name = ''
         if url_type == "sat":
             name = 'satellites_url.txt'
@@ -191,12 +229,12 @@ class Prompt(Cmd):
 
         lines = file.readlines()
 
-        if url in lines:
+        if url+"\n" in lines:
             print("Invalid URL: The URL already exits")
             return False
         file.close()
 
-        file = open(name, 'w')
-        file.writelines(url + '\n')
+        file = open(name, 'a')
+        file.write(url + '\n')
         file.close()
         print("Url: "+url+" correctly written")
