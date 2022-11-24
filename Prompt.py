@@ -14,9 +14,10 @@ class Prompt(Cmd):
 
     # dictionary that contain all debris and all satellites
     satellites = {}
-    telescope = None
     location = [46.3013889, 6.133611111111112]  # raw location, simpler than automatically get it
     bluffton = skyfield.api.wgs84.latlon(location[0], location[1])
+    confirm = False
+    target = None
 
     def do_exit(self, arg):
 
@@ -32,7 +33,6 @@ class Prompt(Cmd):
         self.SkyX.terminate()
 
         print("App closed")
-
 
         return True
 
@@ -109,7 +109,6 @@ class Prompt(Cmd):
     def _load_file(self, url_type, urls):
 
         for url in urls:
-            print(url)
             temp = load.tle_file(url, reload=True)
             if url_type == "deb":
                 self.satellites.update({debris.model.satnum: debris for debris in temp})
@@ -144,6 +143,14 @@ class Prompt(Cmd):
             print("Enter a valid target")
             return False
 
+        if arg == "Sun":
+            print("Are you sure you want to target the Sun ? Make sure to have the correct equipment.\n")
+            print("To confirm the command enter it again.")
+        if not self.confirm:
+            self.confirm = True
+            return False
+
+        self.confirm = False
         slew(arg)
         return False
 
@@ -176,6 +183,7 @@ class Prompt(Cmd):
         if coordinates_alt_az[0].degrees < 30:
             print("Target not high enough in the sky")
             return
+        print(coordinates_ra_dec[0], coordinates_ra_dec[1])
         slewToCoords((coordinates_ra_dec[0], coordinates_ra_dec[1]), target.name)
 
     def do_add_catalog(self, arg):
@@ -199,16 +207,23 @@ class Prompt(Cmd):
 
     def do_take_picture(self, arg):
 
-        '''\nTake a picture with selected filter\n'''
+        '''\nTake a picture with selected filter\n
+            Format: take_picture [Exposure time in second] [number of image] [filter number]'''
+
+        splitted_arg = arg.split()
+        if len(splitted_arg) > 3:
+            print("Wrong number of argument.\n"
+                  "Please use the right format. Use help take_picture to learn more.\n")
+
+        atFocus3("NoRTZ", arg[1])
+        for i in range(int(arg[1])):
+            takeImage("Imager", arg[0], "1", arg[2])
 
         return False
 
     def do_dither(self):
         '''\nTake a series of images of a single field'''
-        stopGuiding()
         dither()
-        # TODO: understand how this shit works
-        # startGuiding()
 
     @staticmethod
     def _write_url(url_type, url):
