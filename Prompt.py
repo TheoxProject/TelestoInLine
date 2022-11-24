@@ -109,6 +109,7 @@ class Prompt(Cmd):
     def _load_file(self, url_type, urls):
 
         for url in urls:
+            print(url)
             temp = load.tle_file(url, reload=True)
             if url_type == "deb":
                 self.satellites.update({debris.model.satnum: debris for debris in temp})
