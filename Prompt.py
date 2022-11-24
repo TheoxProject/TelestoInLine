@@ -47,10 +47,10 @@ class Prompt(Cmd):
         if self.has_started:
             print("already started")
             return False
-        
-        if preRun() == "Fail":
-            print("bad configuration please fix config before start")
-            return True
+
+        #if preRun() == "Fail":
+        #    print("bad configuration please fix config before start")
+        #    return True
 
         print("Running Skyfield " + skyfield.__version__ + "\n")
         # check current version
@@ -68,10 +68,10 @@ class Prompt(Cmd):
 
             # start necessary software
             # TODO: remove comment
-            self._launch_software()
+            #self._launch_software()
 
             # Connect Cam
-            camConnect("Imager")
+            #camConnect("Imager")
 
             self.has_started = True
             print("\nReady\n")
@@ -188,7 +188,7 @@ class Prompt(Cmd):
             print("Target under horizons")
             return
         print(coordinates_ra_dec[0], coordinates_ra_dec[1])
-        slewToCoords((str(coordinates_ra_dec[0]), str(coordinates_ra_dec[1])), target.name)
+        slewToCoords((str(coordinates_ra_dec[0].degrees), str(coordinates_ra_dec[1].degrees)), target.name)
 
     def do_add_catalog(self, arg):
 
