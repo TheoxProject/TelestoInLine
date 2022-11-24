@@ -82,7 +82,7 @@ class Prompt(Cmd):
         self._load_file("deb", debris_urls)
 
         print("Load satellites files")
-        self._load_file("sat", debris_urls)
+        self._load_file("sat", satellites_urls)
 
         print("Loaded", len(self.satellites), "debris and satellites")
 
