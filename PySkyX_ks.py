@@ -55,7 +55,7 @@ def slewToCoords(coords,name):
             sys.exit()
         else:
             print("     NOTE: Slew in progress.")
-            slewCount = slewCount + 1
+            slew_count = slew_count + 1
             time.sleep(10)
 
     if "Process aborted." in TSXSend("sky6RASCOMTele.IsSlewComplete"):
