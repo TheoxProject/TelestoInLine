@@ -115,8 +115,6 @@ class Prompt(Cmd):
                 self.satellites.update({debris.model.satnum: debris for debris in temp})
             elif url_type == "sat":
                 self.satellites.update({sat.model.satnum: sat for sat in temp})
-            if url == "https://celestrak.org/NORAD/elements/gp.php?GROUP=starlink&FORMAT=tle\n":
-                print(self.satellites)
 
     def _init_time(self):
         self.ts = load.timescale()
@@ -169,7 +167,7 @@ class Prompt(Cmd):
         self._slew_coord(arg)
 
     def _slew_coord(self, arg):
-        target = self.satellites[arg]
+        target = self.satellites[int(arg)]
         difference = target - self.bluffton
         topocentric = difference.at(self.ts.now())
         coordinates_ra_dec = topocentric.radec(epoch='date')
