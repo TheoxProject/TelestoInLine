@@ -185,7 +185,7 @@ class Prompt(Cmd):
             print("Target under horizons")
             return
         print(coordinates_ra_dec[0], coordinates_ra_dec[1])
-        slewToCoords((str(coordinates_ra_dec[0].degrees), str(coordinates_ra_dec[1].degrees)), target.name)
+        slewToCoords((str(coordinates_ra_dec[0]._degrees), str(coordinates_ra_dec[1]._degrees)), target.name)
 
     def do_add_catalog(self, arg):
 
