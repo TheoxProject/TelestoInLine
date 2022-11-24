@@ -22,10 +22,6 @@ class Prompt(Cmd):
 
         '''\nexit the application.\n'''
 
-        print("Parking Telescope ...\n")
-        stopGuiding()
-        hardPark()
-
         print("Disconnect Cam...\n")
         camDisconnect("Imager")
 
@@ -65,10 +61,9 @@ class Prompt(Cmd):
 
             # initialize file
             self._init_file()
-            print(self.satellites)
 
             # start necessary software
-            #TODO: remove comment
+            # TODO: remove comment
             #self._launch_software()
 
             # Connect Cam
