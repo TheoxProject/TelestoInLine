@@ -1,10 +1,11 @@
+import threading
+import sys
 from cmd import Cmd
 from datetime import datetime
 import skyfield
 from skyfield.api import load
 from subprocess import Popen, DEVNULL, run
 from PySkyX_ks import *
-
 
 class Prompt(Cmd):
     prompt = 'Telesto>'
@@ -15,13 +16,19 @@ class Prompt(Cmd):
     # dictionary that contain all debris and all satellites
     satellites = {}
     location = [46.3013889, 6.133611111111112]  # raw location, simpler than automatically get it
-    bluffton = skyfield.api.wgs84.latlon(location[0], location[1])
+    bluffton = skyfield.api.wgs84.latlon(location[0], location[1])  # vector used to compute satellites location
     confirm = False
     target = None
+    is_following = False
+    follow_thread = None
 
     def do_exit(self, arg):
 
         '''\nexit the application.\n'''
+
+        if self.is_following:
+            print("You are following a target. please stop following before exit.")
+            return False
 
         print("Disconnect Cam...\n")
         camDisconnect("Imager")
@@ -144,6 +151,10 @@ class Prompt(Cmd):
             print("Enter a valid target")
             return False
 
+        if self.is_following:
+            print("You are following a satellite. Please stop following before moving to another target")
+            return False
+
         if arg == "Sun":
             print("Are you sure you want to target the Sun ? Make sure to have the correct equipment.\n")
             print("To confirm the command enter it again.")
@@ -163,6 +174,10 @@ class Prompt(Cmd):
         if not self._check_start():
             return False
 
+        if self.is_following:
+            print("You are following a satellite. Please stop following before moving to another target")
+            return False
+
         args = arg.split()
         if len(args) != 1:
             print("\nInvalid argument number: target_satellites [catalog number]\n")
@@ -173,23 +188,48 @@ class Prompt(Cmd):
             return False
 
         self._slew_coord(arg)
+        self.is_following = True
+
+        # set-uping thread to make the following asynchronous
+        self.follow_thread = threading.Thread(target=self._follow_sat())
+        self.follow_thread.start()
 
     def _slew_coord(self, arg):
-        target = self.satellites[int(arg)]
-        difference = target - self.bluffton
-        topocentric = difference.at(self.ts.now())
-        coordinates_ra_dec = topocentric.radec(epoch='date')
-        coordinates_alt_az = topocentric.altaz()
+        self.target = self.satellites[int(arg)]
+        coordinates_ra_dec, coordinates_alt_az = self._compute_relative_position()
 
         if coordinates_alt_az[0].degrees < 0:
             print("Target under horizons")
             return
         print(coordinates_ra_dec[0], coordinates_ra_dec[1])
-        slewToCoords((str(coordinates_ra_dec[0]._degrees), str(coordinates_ra_dec[1]._degrees)), target.name)
+        slewToCoords((str(coordinates_ra_dec[0]._degrees()), str(coordinates_ra_dec[1]._degrees())), self.target.name)
+
+    def _compute_relative_position(self):
+        target_position = self.target.at(self.ts.now())
+        difference = target_position - self.bluffton
+        topocentric = difference.at(self.ts.now())
+        coordinates_ra_dec = topocentric.radec(epoch='date')
+        coordinates_alt_az = topocentric.altaz()
+
+        return coordinates_ra_dec, coordinates_alt_az
+
+    def _follow_sat(self):
+        coordinates_ra_dec, coordinates_alt_az = self._compute_relative_position()
+
+        while self.is_following and coordinates_alt_az[0].degrees >= 10:
+            coordinates_ra_dec, coordinates_alt_az = self._compute_relative_position()
+            slewToCoords((str(coordinates_ra_dec[0]._degrees()),
+                          str(coordinates_ra_dec[1]._degrees())),
+                         self.target.name)
+
+    def do_stop_following(self):
+        '''\nStop following the current satellite \n'''
+        self.is_following = False
+        self.follow_thread.join()
 
     def do_add_catalog(self, arg):
 
-        '''\nadd an url to download TLE file for debris or satellites
+        '''\nAdd an url to download TLE file for debris or satellites
         add_catalog [type] [url]
         type could be sat or deb\n'''
 
@@ -222,7 +262,8 @@ class Prompt(Cmd):
 
         return False
 
-    def do_dither(self):
+    @staticmethod
+    def do_dither():
         '''\nTake a series of images of a single field'''
         dither()
 
