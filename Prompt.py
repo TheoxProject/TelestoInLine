@@ -208,8 +208,7 @@ class Prompt(Cmd):
         slewToCoords((str(coordinates_ra_dec[0]._degrees()), str(coordinates_ra_dec[1]._degrees())), self.target.name)
 
     def _compute_relative_position(self):
-        target_position = self.target.at(self.ts.now())
-        difference = target_position - self.bluffton
+        difference = self.target - self.bluffton
         topocentric = difference.at(self.ts.now())
         coordinates_ra_dec = topocentric.radec(epoch='date')
         coordinates_alt_az = topocentric.altaz()
