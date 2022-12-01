@@ -224,6 +224,7 @@ class Prompt(Cmd):
             return False
         print(coordinates_ra_dec[0], coordinates_ra_dec[1])
         slewToCoords((str(coordinates_ra_dec[0]._degrees), str(coordinates_ra_dec[1]._degrees)), self.target.name)
+        return True
 
     def _compute_relative_position(self, offset=False):
         difference = self.target - self.bluffton
