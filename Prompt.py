@@ -4,8 +4,10 @@ from cmd import Cmd
 from datetime import datetime
 import skyfield
 from skyfield.api import load
-from subprocess import Popen, DEVNULL, run
+from skyfield.api import N, E
+from subprocess import Popen, DEVNULL
 from PySkyX_ks import *
+
 
 class Prompt(Cmd):
     prompt = 'Telesto>'
@@ -15,8 +17,8 @@ class Prompt(Cmd):
 
     # dictionary that contain all debris and all satellites
     satellites = {}
-    location = [46.3013889, 6.133611111111112]  # raw location, simpler than automatically get it
-    bluffton = skyfield.api.wgs84.latlon(location[0], location[1])  # vector used to compute satellites location
+    location = [46.30916667, 6.13472222]  # raw location, simpler than automatically get it
+    bluffton = skyfield.api.wgs84.latlon(location[0]*N, location[1]*E, elevation_m=443)  # vector used to compute topocentric coordinates
     confirm = False
     target = None
     is_following = False
@@ -35,9 +37,9 @@ class Prompt(Cmd):
 
         print("closing all app...\n")
         # TODO: remove comment
-        self.OSBus.terminate()
-        self.Maestro.terminate()
-        self.SkyX.terminate()
+        #self.OSBus.terminate()
+        #self.Maestro.terminate()
+        #self.SkyX.terminate()
 
         print("App closed")
 
@@ -77,6 +79,7 @@ class Prompt(Cmd):
             time.sleep(5)
 
             # check correct launch
+            #TODO: remove comment
             if preRun() == "Fail":
                 return True
 
@@ -86,7 +89,7 @@ class Prompt(Cmd):
 
     def _init_file(self):
         # Read URLs from text files
-        debris_urls, satellites_urls = self._read_url()
+        debris_urls, satellites_urls, personal_paths = self._read_url()
 
         # load each files then append it in a general dictionary
         print("Load debris files\n")
@@ -95,6 +98,9 @@ class Prompt(Cmd):
         print("Load satellites files")
         self._load_file("sat", satellites_urls)
 
+        print("Load personal tle")
+        self._load_file("sat", personal_paths)
+
         print("Loaded", len(self.satellites), "debris and satellites")
 
     @staticmethod
@@ -102,6 +108,7 @@ class Prompt(Cmd):
 
         debris_url_file = open('debris_url.txt', 'r')
         satellites_url_file = open('satellites_url.txt', 'r')
+        personal_tle_file = open('personal_tle.txt', 'r')
 
         # read debris url
         urls = debris_url_file.readlines()
@@ -115,7 +122,13 @@ class Prompt(Cmd):
         for url in urls:
             satellites_url.append(url)
 
-        return debris_url, satellites_url
+        # read personal tle file
+        paths = personal_tle_file.readlines()
+        personal_path = []
+        for path in paths:
+            personal_path.append(path)
+
+        return debris_url, satellites_url, personal_path
 
     def _load_file(self, url_type, urls):
 
@@ -201,29 +214,23 @@ class Prompt(Cmd):
 
     def _slew_coord(self, arg):
         self.target = self.satellites[int(arg)]
+        print("You targeted "+str(self.target))
         coordinates_ra_dec, coordinates_alt_az = self._compute_relative_position()
-
-        print(coordinates_ra_dec[0]._degrees)
-        print(coordinates_ra_dec[1]._degrees)
-        print(coordinates_ra_dec[2])
-        print(coordinates_alt_az[0].degrees)
-        print(coordinates_alt_az[1].degrees)
-        print(coordinates_alt_az[2])
 
         if coordinates_alt_az[0].degrees < 0:
             print("Target under horizons")
             return False
         print(coordinates_ra_dec[0], coordinates_ra_dec[1])
-        slewToCoords((str(coordinates_ra_dec[0]._degrees()), str(coordinates_ra_dec[1]._degrees())), self.target.name)
+        slewToCoords((str(coordinates_ra_dec[0]._degrees), str(coordinates_ra_dec[1]._degrees)), self.target.name)
 
     def _compute_relative_position(self, offset = False):
         difference = self.target - self.bluffton
-        print(self.ts.now().utc)
         if offset:
             prevision = self.ts.now().utc.replace(minute=self.ts.now().utc.minute + 1)
             topocentric = difference.at(self.ts.utc(prevision))
         else:
             topocentric = difference.at(self.ts.now())
+
         coordinates_ra_dec = topocentric.radec(epoch='date')
         coordinates_alt_az = topocentric.altaz()
 
