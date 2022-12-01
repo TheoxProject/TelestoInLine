@@ -202,16 +202,21 @@ class Prompt(Cmd):
     def _slew_coord(self, arg):
         self.target = self.satellites[int(arg)]
         coordinates_ra_dec, coordinates_alt_az = self._compute_relative_position()
-
+        print(coordinates_ra_dec)
+        print(coordinates_alt_az)
         if coordinates_alt_az[0].degrees < 0:
             print("Target under horizons")
             return False
         print(coordinates_ra_dec[0], coordinates_ra_dec[1])
         slewToCoords((str(coordinates_ra_dec[0]._degrees()), str(coordinates_ra_dec[1]._degrees())), self.target.name)
 
-    def _compute_relative_position(self):
+    def _compute_relative_position(self, offset = False):
         difference = self.target - self.bluffton
-        topocentric = difference.at(self.ts.now())
+        if offset:
+            prevision = self.ts.now().utc.replace(minute=self.ts.now().utc.minute + 1)
+            topocentric = difference.at(self.ts.utc(prevision))
+        else:
+            topocentric = difference.at(self.ts.now())
         coordinates_ra_dec = topocentric.radec(epoch='date')
         coordinates_alt_az = topocentric.altaz()
 
@@ -273,6 +278,18 @@ class Prompt(Cmd):
     def do_dither():
         '''\nTake a series of images of a single field'''
         dither()
+
+    def do_set_bin(self, arg):
+        """\nChange X and Y bin of the camera.\n
+            Format: set_bin [BinX] [BinY]\n"""
+        splitted_args = arg.split()
+
+        if len(splitted_args) != 2:
+            print("Wrong number of argument\n"
+                  "Please use the right format. Use help set_bin to learn more.\n")
+
+        TSXSend("ccdsoftCamera.BinX = "+splitted_args[0])
+        TSXSend("ccdsoftCamera.BinX = "+splitted_args[1])
 
     @staticmethod
     def _write_url(url_type, url):
