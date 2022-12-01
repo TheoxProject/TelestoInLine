@@ -218,7 +218,7 @@ class Prompt(Cmd):
 
     def _compute_relative_position(self, offset = False):
         difference = self.target - self.bluffton
-        print(self.ts.now())
+        print(self.ts.now().utc)
         if offset:
             prevision = self.ts.now().utc.replace(minute=self.ts.now().utc.minute + 1)
             topocentric = difference.at(self.ts.utc(prevision))
