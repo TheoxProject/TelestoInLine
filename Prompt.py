@@ -207,7 +207,7 @@ class Prompt(Cmd):
         print(coordinates_ra_dec[2])
         print(coordinates_alt_az[0].degrees)
         print(coordinates_alt_az[1].degrees)
-        print(coordinates_alt_az[2].degrees)
+        print(coordinates_alt_az[2])
         if coordinates_alt_az[0].degrees < 0:
             print("Target under horizons")
             return False
