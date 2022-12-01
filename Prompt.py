@@ -223,7 +223,6 @@ class Prompt(Cmd):
             return False
         print(coordinates_ra_dec[0], coordinates_ra_dec[1])
         slewToCoords((str(coordinates_ra_dec[0]._degrees), str(coordinates_ra_dec[1]._degrees)), self.target.name)
-        time.sleep(60)
 
     def _compute_relative_position(self, offset=False):
         difference = self.target - self.bluffton
@@ -240,7 +239,8 @@ class Prompt(Cmd):
 
     def _follow_sat(self):
         coordinates_ra_dec, coordinates_alt_az = self._compute_relative_position()
-
+        time.sleep(60)
+        print("stuff")
         while self.is_following and coordinates_alt_az[0].degrees >= 10:
             print("Following")
             coordinates_ra_dec, coordinates_alt_az = self._compute_relative_position()
