@@ -196,6 +196,7 @@ class Prompt(Cmd):
 
         # set-uping thread to make the following asynchronous
         self.follow_thread = threading.Thread(target=self._follow_sat())
+        print("Start following target")
         self.follow_thread.start()
 
     def _slew_coord(self, arg):
