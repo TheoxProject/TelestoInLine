@@ -75,7 +75,7 @@ class Prompt(Cmd):
 
             # start necessary software
             # TODO: remove comment
-            #self._launch_software()
+            self._launch_software()
 
             self.has_started = True
             print("\nReady\n")
