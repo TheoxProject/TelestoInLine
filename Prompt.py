@@ -205,6 +205,7 @@ class Prompt(Cmd):
             return False
 
         if not self._slew_coord(arg):
+            print("whut")
             return False
         self.is_following = True
 
