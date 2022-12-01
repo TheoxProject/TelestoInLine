@@ -1,5 +1,6 @@
 import threading
 import sys
+import time
 from cmd import Cmd
 from datetime import datetime
 import skyfield
@@ -215,15 +216,16 @@ class Prompt(Cmd):
     def _slew_coord(self, arg):
         self.target = self.satellites[int(arg)]
         print("You targeted "+str(self.target))
-        coordinates_ra_dec, coordinates_alt_az = self._compute_relative_position()
+        coordinates_ra_dec, coordinates_alt_az = self._compute_relative_position(True)
 
         if coordinates_alt_az[0].degrees < 0:
             print("Target under horizons")
             return False
         print(coordinates_ra_dec[0], coordinates_ra_dec[1])
         slewToCoords((str(coordinates_ra_dec[0]._degrees), str(coordinates_ra_dec[1]._degrees)), self.target.name)
+        time.sleep(60)
 
-    def _compute_relative_position(self, offset = False):
+    def _compute_relative_position(self, offset=False):
         difference = self.target - self.bluffton
         if offset:
             prevision = self.ts.now().utc.replace(minute=self.ts.now().utc.minute + 1)
