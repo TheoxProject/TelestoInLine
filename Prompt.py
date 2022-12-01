@@ -224,7 +224,7 @@ class Prompt(Cmd):
                           str(coordinates_ra_dec[1]._degrees())),
                          self.target.name)
 
-    def do_stop_following(self):
+    def do_stop_following(self, arg):
         '''\nStop following the current satellite \n'''
         self.is_following = False
         self.follow_thread.join()
