@@ -55,10 +55,6 @@ class Prompt(Cmd):
             print("already started")
             return False
 
-        if preRun() == "Fail":
-            print("bad configuration please fix config before start")
-            return True
-
         print("Running Skyfield " + skyfield.__version__ + "\n")
         # check current version
         if skyfield.VERSION < (1, 45):
@@ -76,6 +72,9 @@ class Prompt(Cmd):
             # start necessary software
             # TODO: remove comment
             self._launch_software()
+
+            if preRun() == "Fail":
+                return True
 
             self.has_started = True
             print("\nReady\n")
