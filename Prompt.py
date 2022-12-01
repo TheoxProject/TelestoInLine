@@ -204,7 +204,7 @@ class Prompt(Cmd):
         coordinates_ra_dec, coordinates_alt_az = self._compute_relative_position()
         print(coordinates_ra_dec[0]._degrees)
         print(coordinates_ra_dec[1]._degrees)
-        print(coordinates_ra_dec[2]._degrees)
+        print(coordinates_ra_dec[2])
         print(coordinates_alt_az[0].degrees)
         print(coordinates_alt_az[1].degrees)
         print(coordinates_alt_az[2].degrees)
