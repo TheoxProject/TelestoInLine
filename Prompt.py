@@ -73,6 +73,10 @@ class Prompt(Cmd):
             # TODO: remove comment
             self._launch_software()
 
+            # wait for software to be correctly launch
+            time.sleep(5)
+
+            # check correct launch
             if preRun() == "Fail":
                 return True
 
