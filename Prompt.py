@@ -240,9 +240,10 @@ class Prompt(Cmd):
         coordinates_ra_dec, coordinates_alt_az = self._compute_relative_position()
 
         while self.is_following and coordinates_alt_az[0].degrees >= 10:
+            print("Following")
             coordinates_ra_dec, coordinates_alt_az = self._compute_relative_position()
-            slewToCoords((str(coordinates_ra_dec[0]._degrees()),
-                          str(coordinates_ra_dec[1]._degrees())),
+            slewToCoords((str(coordinates_ra_dec[0]._degrees),
+                          str(coordinates_ra_dec[1]._degrees)),
                          self.target.name)
         if coordinates_alt_az[0].degrees >= 10:
             print("Target too low in sky. Stop following")
