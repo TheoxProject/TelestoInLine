@@ -190,7 +190,8 @@ class Prompt(Cmd):
             print("\nInvalid target: please use an existing target\n")
             return False
 
-        self._slew_coord(arg)
+        if not self._slew_coord(arg):
+            return False
         self.is_following = True
 
         # set-uping thread to make the following asynchronous
@@ -203,7 +204,7 @@ class Prompt(Cmd):
 
         if coordinates_alt_az[0].degrees < 0:
             print("Target under horizons")
-            return
+            return False
         print(coordinates_ra_dec[0], coordinates_ra_dec[1])
         slewToCoords((str(coordinates_ra_dec[0]._degrees()), str(coordinates_ra_dec[1]._degrees())), self.target.name)
 
@@ -223,11 +224,14 @@ class Prompt(Cmd):
             slewToCoords((str(coordinates_ra_dec[0]._degrees()),
                           str(coordinates_ra_dec[1]._degrees())),
                          self.target.name)
+        if coordinates_alt_az[0].degrees >= 10:
+            print("Target too low in sky. Stop following")
 
     def do_stop_following(self, arg):
         '''\nStop following the current satellite \n'''
         self.is_following = False
         self.follow_thread.join()
+        print("Following stop")
 
     def do_add_catalog(self, arg):
 
