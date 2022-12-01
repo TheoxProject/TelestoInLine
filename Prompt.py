@@ -71,7 +71,7 @@ class Prompt(Cmd):
 
             # start necessary software
             # TODO: remove comment
-            self._launch_software()
+            #self._launch_software()
 
             # wait for software to be correctly launch
             time.sleep(5)
