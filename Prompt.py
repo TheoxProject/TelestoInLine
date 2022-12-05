@@ -24,6 +24,9 @@ class Prompt(Cmd):
     target = None
     is_following = False
     follow_thread = None
+    original_session_name = ""
+    original_binning_X = ""
+    original_binning_Y = ""
 
     def do_exit(self, arg):
 
@@ -32,6 +35,11 @@ class Prompt(Cmd):
         if self.is_following:
             print("You are following a target. please stop following before exit.")
             return False
+
+        # set back original settings
+        TSXSend("cddsoftCamera.BinX = "+self.original_binning_X)
+        TSXSend("cddsoftCamera.BinY = " + self.original_binning_Y)
+        TSXSend("CameraDependentSetting.settingName = "+self.original_session_name)
 
         print("Disconnect Cam...\n")
         camDisconnect("Imager")
@@ -78,6 +86,11 @@ class Prompt(Cmd):
 
             # wait for software to be correctly launch
             time.sleep(5)
+
+            # save original settings
+            self.original_session_name = TSXSend("CameraDependentSetting.settingName")
+            self.original_binning_X = TSXSend("cddsoftCamera.BinX")
+            self.original_binning_Y = TSXSend("cddsoftCamera.BinY")
 
             # Enter a session name
             print("Enter a session name for your observation")
