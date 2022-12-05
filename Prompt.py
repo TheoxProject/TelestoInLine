@@ -79,6 +79,11 @@ class Prompt(Cmd):
             # wait for software to be correctly launch
             time.sleep(5)
 
+            # Enter a session name
+            print("Enter a session name for your observation")
+            session_name = input()
+            TSXSend("CameraDependantSetting.settingName = "+session_name)
+
             # check correct launch
             #TODO: remove comment
             if preRun() == "Fail":
@@ -242,9 +247,7 @@ class Prompt(Cmd):
     def _follow_sat(self):
         coordinates_ra_dec, coordinates_alt_az = self._compute_relative_position()
         time.sleep(60)
-        print("stuff")
         while self.is_following and coordinates_alt_az[0].degrees >= 10:
-            print("Following")
             coordinates_ra_dec, coordinates_alt_az = self._compute_relative_position()
             slewToCoords((str(coordinates_ra_dec[0]._degrees),
                           str(coordinates_ra_dec[1]._degrees)),
