@@ -252,7 +252,6 @@ class Prompt(Cmd):
         if not self._slew_coord(arg):
             print("whut")
             return False
-        self.is_following = True
 
         # set-uping thread to make the following asynchronous
         self.follow_thread = threading.Thread(target=self._follow_sat())
