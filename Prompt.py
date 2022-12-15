@@ -24,11 +24,13 @@ class Prompt(Cmd):
     target = None
     is_following = False
     follow_thread = None
-    original_session_name = ""
-    original_binning_X = ""
-    original_binning_Y = ""
 
-    def do_exit(self, arg):
+    # if crash these are the original settings for observer and binning
+    original_session_name = "chazelas"
+    original_binning_X = "1"
+    original_binning_Y = "1"
+
+    def do_exit(self, args):
 
         '''\nexit the application.\n'''
 
@@ -45,15 +47,25 @@ class Prompt(Cmd):
         camDisconnect("Imager")
 
         print("closing all app...\n")
-        # TODO: remove comment
-        #self.OSBus.terminate()
-        #self.Maestro.terminate()
-        #self.SkyX.terminate()
+        self.OSBus.terminate()
+        self.Maestro.terminate()
+        self.SkyX.terminate()
 
         print("App closed")
 
         return True
 
+    def do_EOF(self, args):
+        return self.do_exit(self)
+
+    def cmdloop(self, intro = None):
+        print(self.intro)
+        while True:
+            try:
+                super(Prompt, self).cmdloop(intro="")
+                break
+            except KeyboardInterrupt:
+                self.do_exit(self)
     def do_start(self, arg):
 
         '''\nInitialize all Telesto hardware and software for communication\n'''
@@ -81,16 +93,10 @@ class Prompt(Cmd):
             self._init_file()
 
             # start necessary software
-            # TODO: remove comment
-            #self._launch_software()
+            self._launch_software()
 
             # wait for software to be correctly launch
             time.sleep(5)
-
-            # save original settings
-            self.original_session_name = TSXSend("CameraDependentSetting.settingName")
-            self.original_binning_X = TSXSend("cddsoftCamera.BinX")
-            self.original_binning_Y = TSXSend("cddsoftCamera.BinY")
 
             # Enter a session name
             print("Enter a session name for your observation")
@@ -98,7 +104,6 @@ class Prompt(Cmd):
             TSXSend("CameraDependantSetting.settingName = "+session_name)
 
             # check correct launch
-            #TODO: remove comment
             if preRun() == "Fail":
                 return True
 
@@ -277,8 +282,8 @@ class Prompt(Cmd):
     def do_add_catalog(self, arg):
 
         '''\nAdd an url to download TLE file for debris or satellites
-        add_catalog [type] [url]
-        type could be sat or deb\n'''
+        add_catalog [type] [url] or add_catalog [type] [path]
+        type could be sat or deb or perso\n'''
 
         args = arg.split()
         if len(args) != 2:
@@ -293,26 +298,28 @@ class Prompt(Cmd):
 
         return False
 
-    def do_take_picture(self, arg):
+    # TODO: Make this command work
+    #def do_take_picture(self, arg):
 
         '''\nTake a picture with selected filter\n
             Format: take_picture [Exposure time in second] [number of image] [filter number]'''
 
-        splitted_arg = arg.split()
-        if len(splitted_arg) > 3:
-            print("Wrong number of argument.\n"
-                  "Please use the right format. Use help take_picture to learn more.\n")
+        #splitted_arg = arg.split()
+        #if len(splitted_arg) > 3:
+        #    print("Wrong number of argument.\n"
+        #          "Please use the right format. Use help take_picture to learn more.\n")
 
-        atFocus3("NoRTZ", arg[1])
-        for i in range(int(arg[1])):
-            takeImage("Imager", arg[0], "1", arg[2])
+        #atFocus3("NoRTZ", arg[1])
+        #for i in range(int(arg[1])):
+        #    takeImage("Imager", arg[0], "1", arg[2])
 
-        return False
+        #return False
 
+    # TODO: Not sure how its works
     @staticmethod
-    def do_dither():
-        '''\nTake a series of images of a single field'''
-        dither()
+    #def do_dither():
+    #    '''\nTake a series of images of a single field'''
+    #    dither()
 
     def do_set_bin(self, arg):
         """\nChange X and Y bin of the camera.\n
@@ -335,8 +342,11 @@ class Prompt(Cmd):
         elif url_type == "deb":
             name = 'debris_url.txt'
             file = open(name, 'r')
+        elif url_type == "perso":
+            name = 'personal_tle.txt'
+            file = open(name, 'r')
         else:
-            print("Invalid argument: type should be deb or sat")
+            print("Invalid argument: type should be deb, sat or perso")
             return False
 
         lines = file.readlines()
