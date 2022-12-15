@@ -321,10 +321,10 @@ class Prompt(Cmd):
     #    '''\nTake a series of images of a single field'''
     #    dither()
 
-    def do_set_bin(self, arg):
+    def do_set_bin(args):
         """\nChange X and Y bin of the camera.\n
             Format: set_bin [BinX] [BinY]\n"""
-        splitted_args = arg.split()
+        splitted_args = args.split()
 
         if len(splitted_args) != 2:
             print("Wrong number of argument\n"
