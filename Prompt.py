@@ -48,14 +48,14 @@ class Prompt(Cmd):
             'rt')
 
         content = init_file.read()
-        content.replace(self.session_name, self.original_session_name)
+        content = content.replace(self.session_name, self.original_session_name)
         init_file.close()
         init_file = open(
             'C:\\Users\\admin\\Documents\\Software Bisque\\TheSkyX Professional Edition\\Imaging System Profiles\\ImagingSystem.ini',
             'wt')
         init_file.write(content)
         init_file.close()
-        
+
         print("Disconnect Cam...\n")
         camDisconnect("Imager")
 
@@ -110,7 +110,7 @@ class Prompt(Cmd):
             self.session_name = input()
             init_file = open('C:\\Users\\admin\\Documents\\Software Bisque\\TheSkyX Professional Edition\\Imaging System Profiles\\ImagingSystem.ini', 'rt')
             content = init_file.read()
-            content.replace(self.original_session_name, self.session_name)
+            content = content.replace(self.original_session_name, self.session_name)
             init_file.close()
             init_file = open('C:\\Users\\admin\\Documents\\Software Bisque\\TheSkyX Professional Edition\\Imaging System Profiles\\ImagingSystem.ini', 'wt')
             init_file.write(content)
