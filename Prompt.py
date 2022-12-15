@@ -25,6 +25,7 @@ class Prompt(Cmd):
     is_following = False
     follow_thread = None
 
+    session_name = ''
     # if crash these are the original settings for observer and binning
     original_session_name = "chazelas"
     original_binning_X = "1"
@@ -41,13 +42,24 @@ class Prompt(Cmd):
         # set back original settings
         TSXSend("cddsoftCamera.BinX = "+self.original_binning_X)
         TSXSend("cddsoftCamera.BinY = " + self.original_binning_Y)
-        TSXSend("CameraDependentSetting.settingName = "+self.original_session_name)
 
+        init_file = open(
+            'C:\\Users\\admin\\Documents\\Software Bisque\\TheSkyX Professional Edition\\Imaging System Profiles\\ImagingSystem.ini',
+            'rt')
+
+        content = init_file.read()
+        content.replace(self.session_name, self.original_session_name)
+        init_file.close()
+        init_file = open(
+            'C:\\Users\\admin\\Documents\\Software Bisque\\TheSkyX Professional Edition\\Imaging System Profiles\\ImagingSystem.ini',
+            'wt')
+        init_file.write(content)
+        init_file.close()
+        
         print("Disconnect Cam...\n")
         camDisconnect("Imager")
 
         print("closing all app...\n")
-        self.OSBus.terminate()
         self.Maestro.terminate()
         self.SkyX.terminate()
 
@@ -58,7 +70,7 @@ class Prompt(Cmd):
     def do_EOF(self, args):
         return self.do_exit(self)
 
-    def cmdloop(self, intro = None):
+    def cmdloop(self, intro=None):
         print(self.intro)
         while True:
             try:
@@ -66,6 +78,7 @@ class Prompt(Cmd):
                 break
             except KeyboardInterrupt:
                 self.do_exit(self)
+
     def do_start(self, arg):
 
         '''\nInitialize all Telesto hardware and software for communication\n'''
@@ -92,16 +105,25 @@ class Prompt(Cmd):
             # initialize file
             self._init_file()
 
+            # Enter a session name
+            print("Enter a session name for your observation")
+            self.session_name = input()
+            init_file = open('C:\\Users\\admin\\Documents\\Software Bisque\\TheSkyX Professional Edition\\Imaging System Profiles\\ImagingSystem.ini', 'rt')
+            content = init_file.read()
+            content.replace(self.original_session_name, self.session_name)
+            init_file.close()
+            init_file = open('C:\\Users\\admin\\Documents\\Software Bisque\\TheSkyX Professional Edition\\Imaging System Profiles\\ImagingSystem.ini', 'wt')
+            init_file.write(content)
+            init_file.close()
+
             # start necessary software
             self._launch_software()
 
             # wait for software to be correctly launch
             time.sleep(5)
 
-            # Enter a session name
-            print("Enter a session name for your observation")
-            session_name = input()
-            TSXSend("CameraDependantSetting.settingName = "+session_name)
+            # connect camera
+            TSXSend("ccdsoftCamera.Connect()")
 
             # check correct launch
             if preRun() == "Fail":
