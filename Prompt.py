@@ -110,7 +110,7 @@ class Prompt(Cmd):
             self.session_name = input()
             init_file = open('C:\\Users\\admin\\Documents\\Software Bisque\\TheSkyX Professional Edition\\Imaging System Profiles\\ImagingSystem.ini', 'rt')
             content = init_file.read()
-            content = content.replace(self.original_session_name, self.session_name)
+            content = content.replace("m_csobserver="+self.original_session_name,"m_csobserver="+self.session_name)
             init_file.close()
             init_file = open('C:\\Users\\admin\\Documents\\Software Bisque\\TheSkyX Professional Edition\\Imaging System Profiles\\ImagingSystem.ini', 'wt')
             init_file.write(content)
