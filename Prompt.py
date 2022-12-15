@@ -331,7 +331,7 @@ class Prompt(Cmd):
                   "Please use the right format. Use help set_bin to learn more.\n")
 
         TSXSend("ccdsoftCamera.BinX = "+splitted_args[0])
-        TSXSend("ccdsoftCamera.BinX = "+splitted_args[1])
+        TSXSend("ccdsoftCamera.BinY = "+splitted_args[1])
 
     @staticmethod
     def _write_url(url_type, url):
