@@ -79,13 +79,9 @@ class Prompt(Cmd):
             except KeyboardInterrupt:
                 self.do_exit(self)
 
-    def do_start(self, arg):
+    def do_start(self, update_TLE=True):
 
         '''\nInitialize all Telesto hardware and software for communication\n'''
-
-        if len(arg) > 0:
-            print("\nStart don't take argument\n")
-            return False
 
         if self.has_started:
             print("already started")
@@ -101,9 +97,10 @@ class Prompt(Cmd):
 
             # initialize time
             self._init_time()
-
-            # initialize file
-            self._init_file()
+            
+            if update_TLE :
+                # initialize file
+                self._init_file()
 
             # Enter a session name
             print("Enter a session name for your observation")
@@ -133,6 +130,15 @@ class Prompt(Cmd):
             print("\nReady\n")
             return False
 
+    def do_update_tle(self, args):
+            
+            '''\nUpdate TLE files\n'''
+
+            print("Update TLE files")
+            self._init_file()
+    
+            return False
+    
     def _init_file(self):
         # Read URLs from text files
         debris_urls, satellites_urls, personal_paths = self._read_url()
@@ -276,7 +282,7 @@ class Prompt(Cmd):
         if offset:
             # prevision = self.ts.now().utc_datetime().replace(minute=self.ts.now().utc.minute + 1)  # add 1 minute to the current time
             prevision = self.ts.now().utc_datetime().replace(second=self.ts.now().utc.second + 20)
-            
+
             topocentric = difference.at(self.ts.utc(prevision)) # position of the satellite at the next minute, coordinates (x,y,z)
         else:
             topocentric = difference.at(self.ts.now()) # position of the satellite at the current time, coordinates (x,y,z)
