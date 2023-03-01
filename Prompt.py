@@ -274,7 +274,9 @@ class Prompt(Cmd):
     def _compute_relative_position(self, offset=False):   # using https://rhodesmill.org/skyfield/earth-satellites.html
         difference = self.target - self.observatory
         if offset:
-            prevision = self.ts.now().utc_datetime().replace(minute=self.ts.now().utc.minute + 1)  # add 1 minute to the current time
+            # prevision = self.ts.now().utc_datetime().replace(minute=self.ts.now().utc.minute + 1)  # add 1 minute to the current time
+            prevision = self.ts.now().utc_datetime().replace(second=self.ts.now().utc.second + 20)
+            
             topocentric = difference.at(self.ts.utc(prevision)) # position of the satellite at the next minute, coordinates (x,y,z)
         else:
             topocentric = difference.at(self.ts.now()) # position of the satellite at the current time, coordinates (x,y,z)
