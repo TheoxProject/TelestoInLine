@@ -33,7 +33,9 @@ class Prompt(Cmd):
 
     def do_exit(self, args):
 
-        '''\nexit the application.\n'''
+        '''\nexit the application.\n
+        \nexit()\n
+        '''
 
         if self.is_following:
             print("You are following a target. please stop following before exit.")
@@ -81,7 +83,10 @@ class Prompt(Cmd):
 
     def do_start(self, update_TLE=True):
 
-        '''\nInitialize all Telesto hardware and software for communication\n'''
+        '''\nInitialize all Telesto hardware and software for communication
+        \nstart(update_TLE)
+        \nupdate_TLE: if True update TLE files before starting\n
+        '''
 
         if self.has_started:
             print("already started")
@@ -132,7 +137,9 @@ class Prompt(Cmd):
 
     def do_update_tle(self, args):
             
-            '''\nUpdate TLE files\n'''
+            '''\nUpdate TLE files
+            \nupdate_tle()\n
+            '''
 
             print("Update TLE files")
             self._init_file()
@@ -237,7 +244,7 @@ class Prompt(Cmd):
     def do_target_satellites(self, arg):
 
         '''\nMove the telescope to debris
-        target_debris [catalog number]\n'''
+        target_debris [catalog number : NORAD ID]\n'''
 
         if not self._check_start():
             return False
@@ -260,9 +267,10 @@ class Prompt(Cmd):
             return False
 
         # set-uping thread to make the following asynchronous
-        self.follow_thread = threading.Thread(target=self._follow_sat())
+        #self.follow_thread = threading.Thread(target=self._follow_sat())
         print("Start following target")
-        self.follow_thread.start()
+        self._follow_sat()
+        #self.follow_thread.start()
 
     def _slew_coord(self, arg):
         #-----Slew the telescope to the target
@@ -273,15 +281,14 @@ class Prompt(Cmd):
         if coordinates_alt_az[0].degrees < 0:
             print("Target under horizons")
             return False
-        print(coordinates_ra_dec[0], coordinates_ra_dec[1])
+        print("Relative position :", coordinates_ra_dec[0], coordinates_ra_dec[1])
         slewToCoords((str(coordinates_ra_dec[0]._degrees), str(coordinates_ra_dec[1]._degrees)), self.target.name)
         return True
 
     def _compute_relative_position(self, offset=False):   # using https://rhodesmill.org/skyfield/earth-satellites.html
         difference = self.target - self.observatory
         if offset:
-            # prevision = self.ts.now().utc_datetime().replace(minute=self.ts.now().utc.minute + 1)  # add 1 minute to the current time
-            prevision = self.ts.now().utc_datetime().replace(second=self.ts.now().utc.second + 20)
+            prevision = self.ts.now().utc_datetime().replace(minute=self.ts.now().utc.minute + 1)  # add 1 minute to the current time
 
             topocentric = difference.at(self.ts.utc(prevision)) # position of the satellite at the next minute, coordinates (x,y,z)
         else:
@@ -294,13 +301,19 @@ class Prompt(Cmd):
 
     def _follow_sat(self):
         coordinates_ra_dec, coordinates_alt_az = self._compute_relative_position()
+        print("Start waiting minute")
         time.sleep(60)
-        while self.is_following and coordinates_alt_az[0].degrees >= 10:
+        print("End waiting minute")
+        i = 0
+        while self.is_following and coordinates_alt_az[0].degrees >= 10 and i<10:
             coordinates_ra_dec, coordinates_alt_az = self._compute_relative_position()
+            print("Recompute position : " + str(coordinates_ra_dec[0]) + " " + str(coordinates_ra_dec[1]))
             slewToCoords((str(coordinates_ra_dec[0]._degrees),
                           str(coordinates_ra_dec[1]._degrees)),
                          self.target.name)
-            time.sleep(5) # wait 5 secondes before updating the position
+            time.sleep(10) # wait 10 secondes before updating the position
+            i = i + 1
+            
         if coordinates_alt_az[0].degrees <= 10:
             print("Target too low in sky. Stop following")
 
