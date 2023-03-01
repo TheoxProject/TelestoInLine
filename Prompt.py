@@ -18,8 +18,8 @@ class Prompt(Cmd):
 
     # dictionary that contain all debris and all satellites
     satellites = {}
-    location = [46.30916667, 6.13472222]  # raw location, simpler than automatically get it
-    bluffton = skyfield.api.wgs84.latlon(location[0]*N, location[1]*E, elevation_m=443)  # vector used to compute topocentric coordinates
+    location = [46.30916667, 6.13472222]  # raw location of the observatory (WGS84), simpler than automatically get it
+    observatory = skyfield.api.wgs84.latlon(location[0]*N, location[1]*E, elevation_m=443)  # vector used to compute topocentric coordinates
     confirm = False
     target = None
     is_following = False
@@ -259,6 +259,7 @@ class Prompt(Cmd):
         self.follow_thread.start()
 
     def _slew_coord(self, arg):
+        #-----Slew the telescope to the target
         self.target = self.satellites[int(arg)]
         print("You targeted "+str(self.target))
         coordinates_ra_dec, coordinates_alt_az = self._compute_relative_position(True)
@@ -270,16 +271,16 @@ class Prompt(Cmd):
         slewToCoords((str(coordinates_ra_dec[0]._degrees), str(coordinates_ra_dec[1]._degrees)), self.target.name)
         return True
 
-    def _compute_relative_position(self, offset=False):
-        difference = self.target - self.bluffton
+    def _compute_relative_position(self, offset=False):   # using https://rhodesmill.org/skyfield/earth-satellites.html
+        difference = self.target - self.observatory
         if offset:
-            prevision = self.ts.now().utc_datetime().replace(minute=self.ts.now().utc.minute + 1)
-            topocentric = difference.at(self.ts.utc(prevision))
+            prevision = self.ts.now().utc_datetime().replace(minute=self.ts.now().utc.minute + 1)  # add 1 minute to the current time
+            topocentric = difference.at(self.ts.utc(prevision)) # position of the satellite at the next minute, coordinates (x,y,z)
         else:
-            topocentric = difference.at(self.ts.now())
+            topocentric = difference.at(self.ts.now()) # position of the satellite at the current time, coordinates (x,y,z)
 
-        coordinates_ra_dec = topocentric.radec(epoch='date')
-        coordinates_alt_az = topocentric.altaz()
+        coordinates_ra_dec = topocentric.radec(epoch='date') 
+        coordinates_alt_az = topocentric.altaz()  
 
         return coordinates_ra_dec, coordinates_alt_az
 
@@ -291,7 +292,8 @@ class Prompt(Cmd):
             slewToCoords((str(coordinates_ra_dec[0]._degrees),
                           str(coordinates_ra_dec[1]._degrees)),
                          self.target.name)
-        if coordinates_alt_az[0].degrees >= 10:
+            time.sleep(5) # wait 5 secondes before updating the position
+        if coordinates_alt_az[0].degrees <= 10:
             print("Target too low in sky. Stop following")
 
     def do_stop_following(self, arg):
