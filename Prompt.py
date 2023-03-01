@@ -269,6 +269,7 @@ class Prompt(Cmd):
         # set-uping thread to make the following asynchronous
         #self.follow_thread = threading.Thread(target=self._follow_sat())
         print("Start following target")
+        self.is_following=True
         self._follow_sat()
         #self.follow_thread.start()
 
@@ -286,7 +287,7 @@ class Prompt(Cmd):
         return True
 
     def _compute_relative_position(self, offset=False):   # using https://rhodesmill.org/skyfield/earth-satellites.html
-        difference = self.target - self.observatory
+        difference = self.target #- self.observatory
         if offset:
             prevision = self.ts.now().utc_datetime().replace(minute=self.ts.now().utc.minute + 1)  # add 1 minute to the current time
 
@@ -301,19 +302,20 @@ class Prompt(Cmd):
 
     def _follow_sat(self):
         coordinates_ra_dec, coordinates_alt_az = self._compute_relative_position()
+        slewToCoords((str(coordinates_ra_dec[0]._degrees),str(coordinates_ra_dec[1]._degrees)),self.target.name)
         print("Start waiting minute")
-        time.sleep(60)
+        time.sleep(30)
         print("End waiting minute")
         i = 0
-        while self.is_following and coordinates_alt_az[0].degrees >= 10 and i<10:
+        while self.is_following and coordinates_alt_az[0].degrees >= 10 and i<5:
             coordinates_ra_dec, coordinates_alt_az = self._compute_relative_position()
             print("Recompute position : " + str(coordinates_ra_dec[0]) + " " + str(coordinates_ra_dec[1]))
             slewToCoords((str(coordinates_ra_dec[0]._degrees),
                           str(coordinates_ra_dec[1]._degrees)),
                          self.target.name)
-            time.sleep(10) # wait 10 secondes before updating the position
+            time.sleep(1) # wait 10 secondes before updating the position
             i = i + 1
-            
+
         if coordinates_alt_az[0].degrees <= 10:
             print("Target too low in sky. Stop following")
 
