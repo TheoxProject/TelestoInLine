@@ -106,6 +106,8 @@ class Prompt(Cmd):
             if update_TLE :
                 # initialize file
                 self._init_file()
+            else :
+                self.satellites = load.tle_file('./gp.php') # load the file containing all satellites and debris
 
             # Enter a session name
             print("Enter a session name for your observation")
@@ -266,12 +268,33 @@ class Prompt(Cmd):
             print("whut")
             return False
 
+        time.sleep(20)
         # set-uping thread to make the following asynchronous
         #self.follow_thread = threading.Thread(target=self._follow_sat())
         print("Start following target")
         self.is_following=True
         self._follow_sat()
         #self.follow_thread.start()
+
+    def do_slew(self, arg):
+
+        '''\nMove the telescope to the coordinates
+        slew [ra] [dec]\n'''
+
+        if not self._check_start():
+            return False
+
+        if self.is_following:
+            print("You are following a satellite. Please stop following before moving to another target")
+            return False
+
+        args = arg.split()
+        if len(args) != 2:
+            print("\nInvalid argument number: slew [ra] [dec]\n")
+            return False
+        print('slew to', args[0], args[1])
+        slewToCoords((str(args[0]._degrees), str(args[1]._degrees)), "Target")
+        
 
     def _slew_coord(self, arg):
         #-----Slew the telescope to the target
@@ -287,7 +310,7 @@ class Prompt(Cmd):
         return True
 
     def _compute_relative_position(self, offset=False):   # using https://rhodesmill.org/skyfield/earth-satellites.html
-        difference = self.target #- self.observatory
+        difference = self.target - self.observatory
         if offset:
             prevision = self.ts.now().utc_datetime().replace(minute=self.ts.now().utc.minute + 1)  # add 1 minute to the current time
 
@@ -300,15 +323,22 @@ class Prompt(Cmd):
 
         return coordinates_ra_dec, coordinates_alt_az
 
+    def _compute_position(self):
+        topocentric = self.target.at(self.ts.now())
+        coordinates_ra_dec = topocentric.radec(epoch='date')
+        coordinates_alt_az = topocentric.altaz()
+
+        return coordinates_ra_dec, coordinates_alt_az
+    
+    
     def _follow_sat(self):
-        coordinates_ra_dec, coordinates_alt_az = self._compute_relative_position()
-        slewToCoords((str(coordinates_ra_dec[0]._degrees),str(coordinates_ra_dec[1]._degrees)),self.target.name)
+        coordinates_ra_dec, coordinates_alt_az = self._compute_position()
         print("Start waiting minute")
-        time.sleep(30)
+        time.sleep(10)
         print("End waiting minute")
         i = 0
-        while self.is_following and coordinates_alt_az[0].degrees >= 10 and i<5:
-            coordinates_ra_dec, coordinates_alt_az = self._compute_relative_position()
+        while self.is_following and coordinates_alt_az[0].degrees >= 10 and i<3:
+            coordinates_ra_dec, coordinates_alt_az = self._compute_position()
             print("Recompute position : " + str(coordinates_ra_dec[0]) + " " + str(coordinates_ra_dec[1]))
             slewToCoords((str(coordinates_ra_dec[0]._degrees),
                           str(coordinates_ra_dec[1]._degrees)),
