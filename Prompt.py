@@ -308,7 +308,7 @@ class Prompt(Cmd):
             print("Target under horizons")
             return False
         print("Relative position :", coordinates_ra_dec[0], coordinates_ra_dec[1])
-        slewToCoords((str(coordinates_ra_dec[0]._degrees), str(coordinates_ra_dec[1]._degrees)), self.target.name)
+        slewToCoordsAzAlt((str(coordinates_alt_az[1]._degrees), str(coordinates_alt_az[0]._degrees)), self.target.name)
         return True
 
     def _compute_relative_position(self, offset=False):   # using https://rhodesmill.org/skyfield/earth-satellites.html
@@ -335,49 +335,26 @@ class Prompt(Cmd):
         return coordinates_ra_dec, coordinates_alt_az
     
     def _perform_test(self):
-        
-        print('Apparent:')
-        coordinates_ra_dec, coordinates_alt_az = self._compute_position()
-        print('RA :', str(coordinates_ra_dec[0]),', Dec :', str(coordinates_ra_dec[1]))
-        print('Alt :', str(coordinates_alt_az[0]),', Az :', str(coordinates_alt_az[1]))
-        print('Slew using RA and Dec :')
-        slewToCoords((str(coordinates_ra_dec[0]._degrees), str(coordinates_ra_dec[1]._degrees)), self.target.name)
-        time.sleep(20)
 
         coordinates_ra_dec, coordinates_alt_az = self._compute_relative_position()
         print('Slew using Alt and Az :')
         slewToCoordsAzAlt((str(coordinates_alt_az[1]._degrees), str(coordinates_alt_az[0]._degrees)), self.target.name)
-        time.sleep(20)
-        slewToCoordsAzAlt((str(coordinates_alt_az[1]), str(coordinates_alt_az[0])), self.target.name)
-
-        slewToCoords((str(coordinates_alt_az[1]._degrees), str(coordinates_alt_az[0]._degrees)), self.target.name)
-        time.sleep(20)
-
-
-
-
-
-
-
-
+        
 
     def _follow_sat(self):
-        coordinates_ra_dec, coordinates_alt_az = self._compute_position()
-        print("Start waiting minute")
-        time.sleep(10)
-        print("End waiting minute")
+        coordinates_ra_dec, coordinates_alt_az = self._compute_relative_position()
         i = 0
-        while self.is_following and coordinates_alt_az[0].degrees >= 10 and i<3:
-            coordinates_ra_dec, coordinates_alt_az = self._compute_position()
+        while self.is_following and coordinates_alt_az[0].degrees >= 10 and i<4:
+            coordinates_ra_dec, coordinates_alt_az = self._compute_relative_position()
             print("Recompute position : " + str(coordinates_ra_dec[0]) + " " + str(coordinates_ra_dec[1]))
-            slewToCoords((str(coordinates_ra_dec[0]._degrees),
-                          str(coordinates_ra_dec[1]._degrees)),
-                         self.target.name)
+            slewToCoordsAzAlt((str(coordinates_alt_az[1]._degrees), str(coordinates_alt_az[0]._degrees)), self.target.name)
             time.sleep(1) # wait 10 secondes before updating the position
             i = i + 1
 
         if coordinates_alt_az[0].degrees <= 10:
             print("Target too low in sky. Stop following")
+        
+        self.is_following = False
 
     def do_stop_following(self, arg):
         '''\nStop following the current satellite \n'''
