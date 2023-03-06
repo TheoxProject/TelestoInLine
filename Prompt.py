@@ -259,7 +259,7 @@ class Prompt(Cmd):
         if len(args) != 1:
             print("\nInvalid argument number: target_satellites [catalog number]\n")
             return False
-
+        
         if int(args[0]) not in self.satellites:
             print("\nInvalid target: please use an existing target\n")
             return False
@@ -269,6 +269,8 @@ class Prompt(Cmd):
             return False
 
         time.sleep(20)
+        print('Performing test')
+        self._perform_test()
         # set-uping thread to make the following asynchronous
         #self.follow_thread = threading.Thread(target=self._follow_sat())
         print("Start following target")
@@ -324,13 +326,32 @@ class Prompt(Cmd):
         return coordinates_ra_dec, coordinates_alt_az
 
     def _compute_position(self):
-        topocentric = self.target.at(self.ts.now())
-        coordinates_ra_dec = topocentric.radec(epoch='date')
+        geo = self.target.at(self.ts.now())
+        apparent = geo.apparent()
+        coordinates_ra_dec = apparent.radec(epoch='date')
+        difference = self.target - self.observatory
+        topocentric = difference.at(self.ts.now())
         coordinates_alt_az = topocentric.altaz()
 
         return coordinates_ra_dec, coordinates_alt_az
     
-    
+    def _perform_test(self):
+        print('Topocentric :')
+        coordinates_ra_dec, coordinates_alt_az = self._compute_relative_position()
+        print('RA :', str(coordinates_ra_dec[0]),', Dec :', str(coordinates_ra_dec[1]))
+        print('Alt :', str(coordinates_alt_az[0]),', Az :', str(coordinates_alt_az[1]))
+        print('Slew using RA and Dec :')
+        slewToCoords((str(coordinates_ra_dec[0]._degrees), str(coordinates_ra_dec[1]._degrees)), self.target.name)
+        time.sleep(20)
+
+        print('Apparent:')
+        coordinates_ra_dec, coordinates_alt_az = self._compute_position()
+        print('RA :', str(coordinates_ra_dec[0]),', Dec :', str(coordinates_ra_dec[1]))
+        print('Alt :', str(coordinates_alt_az[0]),', Az :', str(coordinates_alt_az[1]))
+        print('Slew using RA and Dec :')
+        slewToCoords((str(coordinates_ra_dec[0]._degrees), str(coordinates_ra_dec[1]._degrees)), self.target.name)
+        time.sleep(20)
+
     def _follow_sat(self):
         coordinates_ra_dec, coordinates_alt_az = self._compute_position()
         print("Start waiting minute")
