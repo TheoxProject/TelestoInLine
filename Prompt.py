@@ -326,24 +326,16 @@ class Prompt(Cmd):
         return coordinates_ra_dec, coordinates_alt_az
 
     def _compute_position(self):
-        geo = self.target.at(self.ts.now())
-        apparent = geo.apparent()
-        coordinates_ra_dec = apparent.radec(epoch='date')
         difference = self.target - self.observatory
-        topocentric = difference.at(self.ts.now())
-        coordinates_alt_az = topocentric.altaz()
+        topo = difference.at(self.ts.now())
+        apparent = topo.apparent()
+        coordinates_ra_dec = apparent.radec(epoch='date')
+        coordinates_alt_az = apparent.altaz()
 
         return coordinates_ra_dec, coordinates_alt_az
     
     def _perform_test(self):
-        print('Topocentric :')
-        coordinates_ra_dec, coordinates_alt_az = self._compute_relative_position()
-        print('RA :', str(coordinates_ra_dec[0]),', Dec :', str(coordinates_ra_dec[1]))
-        print('Alt :', str(coordinates_alt_az[0]),', Az :', str(coordinates_alt_az[1]))
-        print('Slew using RA and Dec :')
-        slewToCoords((str(coordinates_ra_dec[0]._degrees), str(coordinates_ra_dec[1]._degrees)), self.target.name)
-        time.sleep(20)
-
+        
         print('Apparent:')
         coordinates_ra_dec, coordinates_alt_az = self._compute_position()
         print('RA :', str(coordinates_ra_dec[0]),', Dec :', str(coordinates_ra_dec[1]))
@@ -351,6 +343,23 @@ class Prompt(Cmd):
         print('Slew using RA and Dec :')
         slewToCoords((str(coordinates_ra_dec[0]._degrees), str(coordinates_ra_dec[1]._degrees)), self.target.name)
         time.sleep(20)
+
+        coordinates_ra_dec, coordinates_alt_az = self._compute_relative_position()
+        print('Slew using Alt and Az :')
+        slewToCoordsAzAlt((str(coordinates_alt_az[1]._degrees), str(coordinates_alt_az[0]._degrees)), self.target.name)
+        time.sleep(20)
+        slewToCoordsAzAlt((str(coordinates_alt_az[1]), str(coordinates_alt_az[0])), self.target.name)
+
+        slewToCoords((str(coordinates_alt_az[1]._degrees), str(coordinates_alt_az[0]._degrees)), self.target.name)
+        time.sleep(20)
+
+
+
+
+
+
+
+
 
     def _follow_sat(self):
         coordinates_ra_dec, coordinates_alt_az = self._compute_position()
