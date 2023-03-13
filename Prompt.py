@@ -295,7 +295,7 @@ class Prompt(Cmd):
             print("\nInvalid argument number: slew [ra] [dec]\n")
             return False
         print('slew to', args[0], args[1])
-        slewToCoords((str(args[0]._degrees), str(args[1]._degrees)), "Target")
+        slewToCoords((str(args[0]), str(args[1])), "Target")
         
 
     def _slew_coord(self, arg):
@@ -335,33 +335,57 @@ class Prompt(Cmd):
         return coordinates_ra_dec, coordinates_alt_az
     
     def _perform_test(self):
+        TSXSend("sky6RASCOMTele.GetRaDec()")
+        mntRa = round(float(TSXSend("sky6RASCOMTele.dRa")), 4)
+        mntDec = round(float(TSXSend("sky6RASCOMTele.dDec")), 4)
+        print("NOTE: Mount currently at: " + str(mntRa) + " Ra., " + str(mntDec) + " Dec.")
+        time.sleep(5)
 
         coordinates_ra_dec, coordinates_alt_az = self._compute_relative_position()
         print("Relative position :", coordinates_ra_dec[0], coordinates_ra_dec[1], 'using epoch date')
         slewToCoords((str(coordinates_ra_dec[0]._degrees), str(coordinates_ra_dec[1]._degrees)), self.target.name)
         print("Slewing to target")
+        TSXSend("sky6RASCOMTele.GetRaDec()")
+        mntRa = round(float(TSXSend("sky6RASCOMTele.dRa")), 4)
+        mntDec = round(float(TSXSend("sky6RASCOMTele.dDec")), 4)
+        print("NOTE: Mount currently at: " + str(mntRa) + " Ra., " + str(mntDec) + " Dec.")
+        time.sleep(5)
+
         coord = (self.target - self.observatory).at(self.ts.now())
         ra_dec = coord.radec()
         print("Relative position :", ra_dec[0], ra_dec[1], 'using epoch J2000')
-        slewToCoords((str(ra_dec[0]._degrees), str(ra_dec[1]._degrees)), self.target.name)
+        slewToCoords((str(ra_dec[0]), str(ra_dec[1])), self.target.name)
         print("Slewing to target")
+        mntRa = round(float(TSXSend("sky6RASCOMTele.dRa")), 4)
+        mntDec = round(float(TSXSend("sky6RASCOMTele.dDec")), 4)
+        print("NOTE: Mount currently at: " + str(mntRa) + " Ra., " + str(mntDec) + " Dec.")
+        time.sleep(5)
 
         coord = self.target.at(self.ts.now())
         ra_dec = coord.radec(epoch='date')
         print("Target position :", ra_dec[0], ra_dec[1], 'using epoch date')
         slewToCoords((str(ra_dec[0]._degrees), str(ra_dec[1]._degrees)), self.target.name)
+        print("Slewing to target")
+        mntRa = round(float(TSXSend("sky6RASCOMTele.dRa")), 4)
+        mntDec = round(float(TSXSend("sky6RASCOMTele.dDec")), 4)
+        print("NOTE: Mount currently at: " + str(mntRa) + " Ra., " + str(mntDec) + " Dec.")
+        time.sleep(5)
+
         coord = self.target.at(self.ts.now())
         ra_dec = coord.radec()
         print("Target position :", ra_dec[0], ra_dec[1], 'using epoch J2000')
-        slewToCoords((str(ra_dec[0]._degrees), str(ra_dec[1]._degrees)), self.target.name)
+        slewToCoords((str(ra_dec[0]), str(ra_dec[1])), self.target.name)
         print("Slewing to target")
+        mntRa = round(float(TSXSend("sky6RASCOMTele.dRa")), 4)
+        mntDec = round(float(TSXSend("sky6RASCOMTele.dDec")), 4)
+        print("NOTE: Mount currently at: " + str(mntRa) + " Ra., " + str(mntDec) + " Dec.")
 
 
 
     def _follow_sat(self):
         coordinates_ra_dec, coordinates_alt_az = self._compute_relative_position()
         i = 0
-        while self.is_following and coordinates_alt_az[0].degrees >= 10 and i<4:
+        while self.is_following and coordinates_alt_az[0].degrees >= 10 and i<2:
             coordinates_ra_dec, coordinates_alt_az = self._compute_relative_position()
             print("Recompute position : " + str(coordinates_ra_dec[0]) + " " + str(coordinates_ra_dec[1]))
             slewToCoordsAzAlt((str(coordinates_alt_az[1]._degrees), str(coordinates_alt_az[0]._degrees)), self.target.name)
