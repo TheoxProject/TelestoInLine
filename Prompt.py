@@ -337,19 +337,25 @@ class Prompt(Cmd):
     def _perform_test(self):
 
         coordinates_ra_dec, coordinates_alt_az = self._compute_relative_position()
-        print("Relative position :", coordinates_ra_dec[0], coordinates_ra_dec[1])
+        print("Relative position :", coordinates_ra_dec[0], coordinates_ra_dec[1], 'using epoch date')
         slewToCoords((str(coordinates_ra_dec[0]._degrees), str(coordinates_ra_dec[1]._degrees)), self.target.name)
         print("Slewing to target")
-        slewToCoords((str(coordinates_ra_dec[1]._degrees), str(coordinates_ra_dec[0]._degrees)), self.target.name)
+        coord = (self.target - self.observatory).at(self.ts.now())
+        ra_dec = coord.radec()
+        print("Relative position :", ra_dec[0], ra_dec[1], 'using epoch J2000')
+        slewToCoords((str(ra_dec[0]._degrees), str(ra_dec[1]._degrees)), self.target.name)
         print("Slewing to target")
 
         coord = self.target.at(self.ts.now())
         ra_dec = coord.radec(epoch='date')
-        print("Target position :", ra_dec[0], ra_dec[1])
-        print("Target position :", coord.radec())
+        print("Target position :", ra_dec[0], ra_dec[1], 'using epoch date')
+        slewToCoords((str(ra_dec[0]._degrees), str(ra_dec[1]._degrees)), self.target.name)
+        coord = self.target.at(self.ts.now())
+        ra_dec = coord.radec()
+        print("Target position :", ra_dec[0], ra_dec[1], 'using epoch J2000')
         slewToCoords((str(ra_dec[0]._degrees), str(ra_dec[1]._degrees)), self.target.name)
         print("Slewing to target")
-        
+
 
 
     def _follow_sat(self):
