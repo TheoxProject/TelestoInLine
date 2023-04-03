@@ -235,9 +235,9 @@ class Prompt(Cmd):
         if arg == "Sun":
             print("Are you sure you want to target the Sun ? Make sure to have the correct equipment.\n")
             print("To confirm the command enter it again.")
-        if not self.confirm:
-            self.confirm = True
-            return False
+            if not self.confirm:
+                self.confirm = True
+                return False
 
         self.confirm = False
         slew(arg)
@@ -268,15 +268,15 @@ class Prompt(Cmd):
             print("whut")
             return False
 
-        time.sleep(20)
-        print('Performing test')
+        print('Performing rate test')
         self._perform_test()
         # set-uping thread to make the following asynchronous
-        #self.follow_thread = threading.Thread(target=self._follow_sat())
+        self.follow_thread = threading.Thread(target=self._follow_sat())
         print("Start following target")
         self.is_following=True
         self._follow_sat()
-        #self.follow_thread.start()
+        self.follow_thread.start()
+        return True
 
     def do_slew(self, arg):
 
@@ -307,11 +307,121 @@ class Prompt(Cmd):
         if coordinates_alt_az[0].degrees < 0:
             print("Target under horizons")
             return False
-        print("Relative position :", coordinates_ra_dec[0], coordinates_ra_dec[1])
+        print("Relative position :", coordinates_ra_dec[0],'Ra,', coordinates_ra_dec[1],'Dec')
         slewToCoordsAzAlt((str(coordinates_alt_az[1]._degrees), str(coordinates_alt_az[0]._degrees)), self.target.name)
         return True
 
-    def _compute_relative_position(self, offset=False):   # using https://rhodesmill.org/skyfield/earth-satellites.html
+    def _compute_relative_position(self, offset=0):   # using https://rhodesmill.org/skyfield/earth-satellites.html
+        difference = self.target - self.observatory
+        if offset:
+            prevision = self.ts.now().utc_datetime().replace(minute=self.ts.now().utc.minute + 1)  # add x minute to the current time
+
+            topocentric = difference.at(self.ts.utc(prevision)) # position of the satellite at the next minute, coordinates (x,y,z)
+        else:
+            topocentric = difference.at(self.ts.now()) # position of the satellite at the current time, coordinates (x,y,z)
+
+        apparent = topocentric.apparent()
+        coordinates_ra_dec = apparent.radec(epoch='date') 
+        coordinates_alt_az = apparent.altaz()  ## altaz('standard')
+
+        return coordinates_ra_dec, coordinates_alt_az
+    
+ #################
+    def _perform_test(self):
+
+        coordinates_ra_dec, coordinates_alt_az = self._compute_relative_position()
+        print("Relative position :", coordinates_ra_dec[0], coordinates_ra_dec[1], 'using epoch date')
+        slewToCoords((str(coordinates_ra_dec[0]._hours), str(coordinates_ra_dec[1]._degrees)), self.target.name)
+        print("Slewing to target")
+        TSXSend("sky6RASCOMTele.GetRaDec()")
+        mntRa = round(float(TSXSend("sky6RASCOMTele.dRa")), 4)
+        mntDec = round(float(TSXSend("sky6RASCOMTele.dDec")), 4)
+        print("NOTE: Mount currently at: " + str(mntRa) + " Ra., " + str(mntDec) + " Dec.")
+        time.sleep(5)
+
+    def _follow_sat_using_rate1(self):
+        print('\n')
+        start = time.perf_counter()
+        coordinates_ra_dec, coordinates_alt_az = self._compute_relative_position(True)
+        if coordinates_alt_az[0].degrees <= 10:
+            print("Target will be too low in sky. Stop following\n")
+            return False
+        
+        print('Celestial coordinates : RA ', coordinates_ra_dec[0].hours, '- Dec', coordinates_ra_dec[1].degrees)
+
+        print('Aligning the telescope')
+        #slew
+        slewToCoords((str(coordinates_ra_dec[0]._hours), str(coordinates_ra_dec[1]._degrees)), self.target.name)
+        print('Telesto is in the target path\n')
+        
+        #Calculating the rate :
+        print('Calculating celestial rate')
+        ra_rate, dec_rate = self._compute_celestial_rate(True)
+        #display the rate 
+        print('Celestial rate : RA ', ra_rate.arcseconds, '- Dec', dec_rate.arcseconds)
+
+        
+
+        print('time elapsed = ', time.perf_counter() - start,'\n')
+
+        print('##################################')
+        disp = 0
+        while time.perf_counter() - start < 60:
+            time.sleep(1)
+            if disp%5 == 0:
+                print('Waiting the target to be in the field of view')
+            disp += 1
+        print('##################################\n')
+        print('time elapsed = ', time.perf_counter() - start,'\n')
+
+        print('Start following')
+        self.is_following=True
+        #display the rate 
+        print('Celestial rate : RA ', ra_rate.arcseconds, '- Dec', dec_rate.arcseconds,'\n')
+        setTrackingRate((str(ra_rate.arcseconds),str(dec_rate.arcseconds)))
+
+        coordinates_ra_dec, coordinates_alt_az = self._compute_relative_position()
+        print('Celestial coordinates : RA ', coordinates_ra_dec[0].hours, '- Dec', coordinates_ra_dec[1].degrees)
+
+    def _follow_sat_using_rate2(self):
+        start = time.perf_counter()
+
+        #Initialisation
+        offset = 60 # s
+        coordinates_ra_dec, coordinates_alt_az = self._compute_relative_position(True)
+        if coordinates_alt_az[0].degrees <= 10:
+            print("Target will be too low in sky. Stop following\n")
+            return False
+        print('Celestial coordinates : RA ', coordinates_ra_dec[0].hours, '- Dec', coordinates_ra_dec[1].degrees)
+        print('Aligning the telescope')
+        slewToCoords(coordinates_ra_dec[0].hours, coordinates_ra_dec[1].degrees)
+        print('Telesto is in the target path\n')
+
+        # wait for the target to be in the field of view
+        print('##################################')
+        disp = 0
+        while time.perf_counter() - start < offset:
+            time.sleep(1)
+            if disp%5 == 0:
+                print('Waiting the target to be in the field of view')
+            disp += 1
+        print('##################################\n')
+
+        #Calculating the rate :
+        print('Calculating celestial rate')
+        coordinates_ra_dec, _ = self._compute_relative_position()
+        coordinates_ra_dec_next, _ = self._compute_relative_position(True)
+        ra_rate = (coordinates_ra_dec_next[0].arcseconds() - coordinates_ra_dec[0].arcseconds()) / offset
+        dec_rate = (coordinates_ra_dec_next[1].arcseconds() - coordinates_ra_dec[1].arcseconds()) / offset
+        #display the rate
+        print('Celestial rate : dRA ', ra_rate.degrees, '- dDec', dec_rate.degrees)
+
+        # Move the telescope with the rate
+        print('Start following using rate')
+        self.is_following=True
+        setTrackingRate((str(ra_rate),str(dec_rate)))  # Should be in arcseconds/second
+
+    def _compute_celestial_rate(self,offset=0):
         difference = self.target - self.observatory
         if offset:
             prevision = self.ts.now().utc_datetime().replace(minute=self.ts.now().utc.minute + 1)  # add 1 minute to the current time
@@ -320,66 +430,14 @@ class Prompt(Cmd):
         else:
             topocentric = difference.at(self.ts.now()) # position of the satellite at the current time, coordinates (x,y,z)
 
-        coordinates_ra_dec = topocentric.radec(epoch='date') 
-        coordinates_alt_az = topocentric.altaz()  
 
-        return coordinates_ra_dec, coordinates_alt_az
-
-    def _compute_position(self):
-        difference = self.target - self.observatory
-        topo = difference.at(self.ts.now())
-        apparent = topo.apparent()
-        coordinates_ra_dec = apparent.radec(epoch='date')
-        coordinates_alt_az = apparent.altaz()
-
-        return coordinates_ra_dec, coordinates_alt_az
+        print(topocentric.frame_latlon_and_rates(skyfield.framelib.true_equator_and_equinox_of_date), sep='\n')
+        Dec, Ra, _, ra_rate, dec_rate, _ = topocentric.frame_latlon_and_rates(skyfield.framelib.true_equator_and_equinox_of_date)
+        print('Ra', Ra._hours, 'Dec', Dec._degrees, 'ra_rate', ra_rate.arcseconds, 'dec_rate', dec_rate.arcseconds)
+        return ra_rate, dec_rate
     
-    def _perform_test(self):
-        TSXSend("sky6RASCOMTele.GetRaDec()")
-        mntRa = round(float(TSXSend("sky6RASCOMTele.dRa")), 4)
-        mntDec = round(float(TSXSend("sky6RASCOMTele.dDec")), 4)
-        print("NOTE: Mount currently at: " + str(mntRa) + " Ra., " + str(mntDec) + " Dec.")
-        time.sleep(5)
 
-        coordinates_ra_dec, coordinates_alt_az = self._compute_relative_position()
-        print("Relative position :", coordinates_ra_dec[0], coordinates_ra_dec[1], 'using epoch date')
-        slewToCoords((str(coordinates_ra_dec[0]._degrees), str(coordinates_ra_dec[1]._degrees)), self.target.name)
-        print("Slewing to target")
-        TSXSend("sky6RASCOMTele.GetRaDec()")
-        mntRa = round(float(TSXSend("sky6RASCOMTele.dRa")), 4)
-        mntDec = round(float(TSXSend("sky6RASCOMTele.dDec")), 4)
-        print("NOTE: Mount currently at: " + str(mntRa) + " Ra., " + str(mntDec) + " Dec.")
-        time.sleep(5)
-
-        coord = (self.target - self.observatory).at(self.ts.now())
-        ra_dec = coord.radec()
-        print("Relative position :", ra_dec[0], ra_dec[1], 'using epoch J2000')
-        slewToCoords((str(ra_dec[0]), str(ra_dec[1])), self.target.name)
-        print("Slewing to target")
-        mntRa = round(float(TSXSend("sky6RASCOMTele.dRa")), 4)
-        mntDec = round(float(TSXSend("sky6RASCOMTele.dDec")), 4)
-        print("NOTE: Mount currently at: " + str(mntRa) + " Ra., " + str(mntDec) + " Dec.")
-        time.sleep(5)
-
-        coord = self.target.at(self.ts.now())
-        ra_dec = coord.radec(epoch='date')
-        print("Target position :", ra_dec[0], ra_dec[1], 'using epoch date')
-        slewToCoords((str(ra_dec[0]._degrees), str(ra_dec[1]._degrees)), self.target.name)
-        print("Slewing to target")
-        mntRa = round(float(TSXSend("sky6RASCOMTele.dRa")), 4)
-        mntDec = round(float(TSXSend("sky6RASCOMTele.dDec")), 4)
-        print("NOTE: Mount currently at: " + str(mntRa) + " Ra., " + str(mntDec) + " Dec.")
-        time.sleep(5)
-
-        coord = self.target.at(self.ts.now())
-        ra_dec = coord.radec()
-        print("Target position :", ra_dec[0], ra_dec[1], 'using epoch J2000')
-        slewToCoords((str(ra_dec[0]), str(ra_dec[1])), self.target.name)
-        print("Slewing to target")
-        mntRa = round(float(TSXSend("sky6RASCOMTele.dRa")), 4)
-        mntDec = round(float(TSXSend("sky6RASCOMTele.dDec")), 4)
-        print("NOTE: Mount currently at: " + str(mntRa) + " Ra., " + str(mntDec) + " Dec.")
-
+##########################
 
 
     def _follow_sat(self):

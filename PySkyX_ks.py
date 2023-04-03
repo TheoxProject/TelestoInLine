@@ -24,6 +24,72 @@ import random
 import math
 import pathlib
 
+################# Extension ###################
+def setTrackingRate(rate):
+    dDec = rate[0]
+    dRa = rate[1]
+    print("Setting tracking rate to : (dRa)" + dRa + " arcseconds/second, (dDec)" + dDec+ " arcseconds/second")
+    if TSXSend("sky6RASCOMTele.IsParked()") == "true":
+        print("     NOTE: Unparking mount.")
+        TSXSend("sky6RASCOMTele.Unpark()")
+
+    if str(TSXSend("SelectedHardware.mountModel") != "Telescope Mount Simulator"):
+        TSXSend("sky6RASCOMTele.SetTracking(1, 1, 0 ,0)")
+
+    TSXSend("sky6RASCOMTele.Asynchronous = true")
+
+    TSXSend('sky6RASCOMTele.SetTracking(1, 0,' + dRa +',' + dDec + ')')
+
+
+def slewToCoordsAzAlt(coords, name):
+    slew_count = 0
+    az = coords[0]
+    alt = coords[1]
+
+    print("Slewing to " + alt + " " + az)
+    if TSXSend("sky6RASCOMTele.IsParked()") == "true":
+        print("     NOTE: Unparking mount.")
+        TSXSend("sky6RASCOMTele.Unpark()")
+
+    if str(TSXSend("SelectedHardware.mountModel") != "Telescope Mount Simulator"):
+        TSXSend("sky6RASCOMTele.SetTracking(1, 1, 0 ,0)")
+
+    TSXSend("sky6RASCOMTele.Asynchronous = true")
+
+    TSXSend('sky6RASCOMTele.SlewToAzAlt(' + az + ', ' + alt + ', "' + name + '")')
+
+    time.sleep(0.5)
+
+    while TSXSend("sky6RASCOMTele.IsSlewComplete") == "0":
+        if slew_count > 119:
+            print("    ERROR: Mount appears stuck!")
+            timeStamp("Sending abort command.")
+            # sky6RASCOMTele.Abort()
+            if TSXSend("SelectedHardware.mountModel") != "Telescope Mount Simulator":
+                time.sleep(5)
+                timeStamp("Trying to stop sidereal motor.")
+                TSXSend("sky6RASCOMTele.SetTracking(0, 1, 0 ,0)")
+            timeStamp("Stopping script.")
+            sys.exit()
+        else:
+            print("     NOTE: Slew in progress.")
+            slew_count = slew_count + 1
+            time.sleep(10)
+
+    if "Process aborted." in TSXSend("sky6RASCOMTele.IsSlewComplete"):
+        timeStamp("Script Aborted.")
+        sys.exit()
+    TSXSend("sky6RASCOMTele.Asynchronous = false")
+    print("Completed slew")
+
+    TSXSend("sky6RASCOMTele.GetAzAlt()")
+    mntAz = round(float(TSXSend("sky6RASCOMTele.dAz")), 2)
+    mntAlt = round(float(TSXSend("sky6RASCOMTele.dAlt")), 2)
+    print("NOTE: Mount currently at: " + str(mntAz) + " az., " + str(mntAlt) + " alt.")
+
+############################################
+
+
 
 def slewToCoords(coords, name):
     slew_count = 0
@@ -71,51 +137,6 @@ def slewToCoords(coords, name):
     mntAlt = round(float(TSXSend("sky6RASCOMTele.dAlt")), 2)
     print("NOTE: Mount currently at: " + str(mntAz) + " az., " + str(mntAlt) + " alt.")
 
-def slewToCoordsAzAlt(coords, name):
-    slew_count = 0
-    az = coords[0]
-    alt = coords[1]
-
-    print("Slewing to " + alt + " " + az)
-    if TSXSend("sky6RASCOMTele.IsParked()") == "true":
-        print("     NOTE: Unparking mount.")
-        TSXSend("sky6RASCOMTele.Unpark()")
-
-    if str(TSXSend("SelectedHardware.mountModel") != "Telescope Mount Simulator"):
-        TSXSend("sky6RASCOMTele.SetTracking(1, 1, 0 ,0)")
-
-    TSXSend("sky6RASCOMTele.Asynchronous = true")
-
-    TSXSend('sky6RASCOMTele.SlewToAzAlt(' + az + ', ' + alt + ', "' + name + '")')
-
-    time.sleep(0.5)
-
-    while TSXSend("sky6RASCOMTele.IsSlewComplete") == "0":
-        if slew_count > 119:
-            print("    ERROR: Mount appears stuck!")
-            timeStamp("Sending abort command.")
-            # sky6RASCOMTele.Abort()
-            if TSXSend("SelectedHardware.mountModel") != "Telescope Mount Simulator":
-                time.sleep(5)
-                timeStamp("Trying to stop sidereal motor.")
-                TSXSend("sky6RASCOMTele.SetTracking(0, 1, 0 ,0)")
-            timeStamp("Stopping script.")
-            sys.exit()
-        else:
-            print("     NOTE: Slew in progress.")
-            slew_count = slew_count + 1
-            time.sleep(10)
-
-    if "Process aborted." in TSXSend("sky6RASCOMTele.IsSlewComplete"):
-        timeStamp("Script Aborted.")
-        sys.exit()
-    TSXSend("sky6RASCOMTele.Asynchronous = false")
-    print("Completed slew")
-
-    TSXSend("sky6RASCOMTele.GetAzAlt()")
-    mntAz = round(float(TSXSend("sky6RASCOMTele.dAz")), 2)
-    mntAlt = round(float(TSXSend("sky6RASCOMTele.dAlt")), 2)
-    print("NOTE: Mount currently at: " + str(mntAz) + " az., " + str(mntAlt) + " alt.")
 
 
 def openDome():
