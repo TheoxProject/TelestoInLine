@@ -453,7 +453,46 @@ class Prompt(Cmd):
         Dec, Ra, _, ra_rate, dec_rate, _ = topocentric.frame_latlon_and_rates(skyfield.framelib.true_equator_and_equinox_of_date)
         print('Ra', Ra._hours, 'Dec', Dec._degrees, 'ra_rate', ra_rate.arcseconds.per_second, 'dec_rate', dec_rate.arcseconds.per_second)
         return ra_rate, dec_rate
-    
+
+    def _follow_sat_using_loop(self):
+        print('\n')
+        start = time.perf_counter()
+        coordinates_ra_dec, coordinates_alt_az = self._compute_relative_position(True)
+        if coordinates_alt_az[0].degrees <= 10:
+            print("Target will be too low in sky. Stop following\n")
+            return False
+        
+        print('Celestial coordinates : RA ', coordinates_ra_dec[0].hours, '- Dec', coordinates_ra_dec[1].degrees)
+
+        print('Aligning the telescope')
+        #slew
+        slewToCoords((str(coordinates_ra_dec[0]._hours), str(coordinates_ra_dec[1]._degrees)), self.target.name)
+        print('Telesto is in the target path\n')
+
+        print('time elapsed = ', time.perf_counter() - start,'\n')
+        print('##################################')
+        disp = 0
+        while time.perf_counter() - start < 60:
+            time.sleep(1)
+            if disp%5 == 0:
+                print('Waiting the target to be in the field of view',time.perf_counter() - start,'s')
+            disp += 1
+        print('##################################\n')
+        print('time elapsed = ', time.perf_counter() - start,'\n')
+
+        print('Start following')
+        self.is_following=True
+
+        while self.is_following and coordinates_alt_az[0].degrees >= 10 and time.perf_counter() - start < 120:
+            coordinates_ra_dec, coordinates_alt_az = self._compute_relative_position()
+            print("Recompute position : " + str(coordinates_ra_dec[0]) + " " + str(coordinates_ra_dec[1]))
+            slewToCoords((str(coordinates_ra_dec[0]._hours), str(coordinates_ra_dec[1]._degrees)), self.target.name)
+            time.sleep(2)
+            
+        self.is_following=False
+        print('Celestial coordinates : RA ', coordinates_ra_dec[0].hours, '- Dec', coordinates_ra_dec[1].degrees)
+
+
     def do_kill(self):
         """Kill the current process"""
         print('Killing the current process')
