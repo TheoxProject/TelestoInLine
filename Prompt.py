@@ -314,8 +314,9 @@ class Prompt(Cmd):
     def _compute_relative_position(self, offset=0):   # using https://rhodesmill.org/skyfield/earth-satellites.html
         difference = self.target - self.observatory
         if offset:
+            print('actual time', self.ts.now().utc_datetime())
             prevision = self.ts.now().utc_datetime().replace(minute=self.ts.now().utc.minute + 1)  # add x minute to the current time
-
+            print('next minute', prevision)
             topocentric = difference.at(self.ts.utc(prevision)) # position of the satellite at the next minute, coordinates (x,y,z)
         else:
             topocentric = difference.at(self.ts.now()) # position of the satellite at the current time, coordinates (x,y,z)
@@ -352,6 +353,7 @@ class Prompt(Cmd):
         mntRa = round(float(TSXSend("sky6RASCOMTele.dRa")), 4)
         mntDec = round(float(TSXSend("sky6RASCOMTele.dDec")), 4)
         print("NOTE: Mount currently at: " + str(mntRa) + " Ra., " + str(mntDec) + " Dec.")
+        self._follow_sat_using_rate1()
         time.sleep(60)
         TSXSend("sky6RASCOMTele.SetTracking(1, 1, 0 ,0)")
 
@@ -374,7 +376,7 @@ class Prompt(Cmd):
         print('Calculating celestial rate')
         ra_rate, dec_rate = self._compute_celestial_rate(True)
         #display the rate 
-        print('Celestial rate : RA ', ra_rate.arcseconds, '- Dec', dec_rate.arcseconds)
+        print('Celestial rate : RA ', ra_rate.arcseconds.per_second, '- Dec', dec_rate.arcseconds.per_second)
 
         
 
@@ -385,7 +387,7 @@ class Prompt(Cmd):
         while time.perf_counter() - start < 60:
             time.sleep(1)
             if disp%5 == 0:
-                print('Waiting the target to be in the field of view')
+                print('Waiting the target to be in the field of view',time.perf_counter() - start,'s')
             disp += 1
         print('##################################\n')
         print('time elapsed = ', time.perf_counter() - start,'\n')
@@ -393,8 +395,8 @@ class Prompt(Cmd):
         print('Start following')
         self.is_following=True
         #display the rate 
-        print('Celestial rate : RA ', ra_rate.arcseconds, '- Dec', dec_rate.arcseconds,'\n')
-        setTrackingRate((str(ra_rate.arcseconds),str(dec_rate.arcseconds)))
+        print('Celestial rate : RA ', ra_rate.arcseconds.per_second, '- Dec', dec_rate.arcseconds.per_second,'\n')
+        setTrackingRate((str(ra_rate.arcseconds.per_second),str(dec_rate.arcseconds.per_second)))
 
         coordinates_ra_dec, coordinates_alt_az = self._compute_relative_position()
         print('Celestial coordinates : RA ', coordinates_ra_dec[0].hours, '- Dec', coordinates_ra_dec[1].degrees)
@@ -449,10 +451,14 @@ class Prompt(Cmd):
 
         print(topocentric.frame_latlon_and_rates(skyfield.framelib.true_equator_and_equinox_of_date), sep='\n')
         Dec, Ra, _, ra_rate, dec_rate, _ = topocentric.frame_latlon_and_rates(skyfield.framelib.true_equator_and_equinox_of_date)
-        print('Ra', Ra._hours, 'Dec', Dec._degrees, 'ra_rate', ra_rate.arcseconds, 'dec_rate', dec_rate.arcseconds)
+        print('Ra', Ra._hours, 'Dec', Dec._degrees, 'ra_rate', ra_rate.arcseconds.per_second, 'dec_rate', dec_rate.arcseconds.per_second)
         return ra_rate, dec_rate
     
-
+    def do_kill(self):
+        """Kill the current process"""
+        print('Killing the current process')
+        # exit the program
+        sys.exit(0)
 ##########################
 
 
