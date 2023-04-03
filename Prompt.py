@@ -320,16 +320,31 @@ class Prompt(Cmd):
         else:
             topocentric = difference.at(self.ts.now()) # position of the satellite at the current time, coordinates (x,y,z)
 
-        apparent = topocentric.apparent()
-        coordinates_ra_dec = apparent.radec(epoch='date') 
-        coordinates_alt_az = apparent.altaz()  ## altaz('standard')
+        #apparent = topocentric.apparent()
+        coordinates_ra_dec = topocentric.radec(epoch='date') 
+        coordinates_alt_az = topocentric.altaz()  ## altaz('standard')
 
         return coordinates_ra_dec, coordinates_alt_az
     
  #################
-    def _perform_test(self):
+    def do_perform_test(self, arg):
+        '''\nPerform some test \n'''
+        #Initial verification:
+        if self.is_following:
+            print("You are following a satellite. Please stop following before moving to another target")
+            return False
+        args = arg.split()
+        if len(args) != 1:
+            print("\nInvalid argument number: target_satellites [catalog number]\n")
+            return False       
+        if int(args[0]) not in self.satellites:
+            print("\nInvalid target: please use an existing target\n")
+            return False
+        # The test is performed on the target
+        self.target = self.satellites[int(arg)]
+        print("You targeted "+str(self.target))
 
-        coordinates_ra_dec, coordinates_alt_az = self._compute_relative_position()
+        coordinates_ra_dec, _ = self._compute_relative_position()
         print("Relative position :", coordinates_ra_dec[0], coordinates_ra_dec[1], 'using epoch date')
         slewToCoords((str(coordinates_ra_dec[0]._hours), str(coordinates_ra_dec[1]._degrees)), self.target.name)
         print("Slewing to target")
@@ -337,7 +352,8 @@ class Prompt(Cmd):
         mntRa = round(float(TSXSend("sky6RASCOMTele.dRa")), 4)
         mntDec = round(float(TSXSend("sky6RASCOMTele.dDec")), 4)
         print("NOTE: Mount currently at: " + str(mntRa) + " Ra., " + str(mntDec) + " Dec.")
-        time.sleep(5)
+        time.sleep(60)
+        TSXSend("sky6RASCOMTele.SetTracking(1, 1, 0 ,0)")
 
     def _follow_sat_using_rate1(self):
         print('\n')

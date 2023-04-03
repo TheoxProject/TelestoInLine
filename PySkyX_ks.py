@@ -37,9 +37,11 @@ def setTrackingRate(rate):
         TSXSend("sky6RASCOMTele.SetTracking(1, 1, 0 ,0)")
 
     TSXSend("sky6RASCOMTele.Asynchronous = true")
-
     TSXSend('sky6RASCOMTele.SetTracking(1, 0,' + dRa +',' + dDec + ')')
-
+    dDec = round(float(TSXSend("sky6RASCOMTele.dDecTrackingRate")), 4)
+    dRa = round(float(TSXSend("sky6RASCOMTele.dRaTrackingRate")), 4)
+    print("NOTE: Mount currently tracking at: " + str(dRa) + " arcseconds/second for Ra, " + str(dDec) + " arcseconds/second for Dec.")
+    return
 
 def slewToCoordsAzAlt(coords, name):
     slew_count = 0
