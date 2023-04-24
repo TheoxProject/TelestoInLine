@@ -1,4 +1,8 @@
 import threading
+import tkinter as tk
+import tkinter.ttk as ttk
+from ttkthemes import ThemedStyle
+from tkinter import messagebox
 import sys
 import time
 from cmd import Cmd
@@ -18,6 +22,7 @@ class Prompt(Cmd):
 
     # dictionary that contain all debris and all satellites
     satellites = {}
+
     location = [46.30916667, 6.13472222]  # raw location of the observatory (WGS84), simpler than automatically get it
     observatory = skyfield.api.wgs84.latlon(location[0]*N, location[1]*E, elevation_m=443)  # vector used to compute topocentric coordinates
     confirm = False
@@ -31,46 +36,7 @@ class Prompt(Cmd):
     original_binning_X = "1"
     original_binning_Y = "1"
 
-    def do_exit(self, args):
-
-        '''\nexit the application.\n
-        \nexit()\n
-        '''
-
-        if self.is_following:
-            print("You are following a target. please stop following before exit.")
-            return False
-
-        # set back original settings
-        TSXSend("cddsoftCamera.BinX = "+self.original_binning_X)
-        TSXSend("cddsoftCamera.BinY = " + self.original_binning_Y)
-
-        init_file = open(
-            'C:\\Users\\admin\\Documents\\Software Bisque\\TheSkyX Professional Edition\\Imaging System Profiles\\ImagingSystem.ini',
-            'rt')
-
-        content = init_file.read()
-        content = content.replace(self.session_name, self.original_session_name)
-        init_file.close()
-        init_file = open(
-            'C:\\Users\\admin\\Documents\\Software Bisque\\TheSkyX Professional Edition\\Imaging System Profiles\\ImagingSystem.ini',
-            'wt')
-        init_file.write(content)
-        init_file.close()
-
-        print("Disconnect Cam...\n")
-        camDisconnect("Imager")
-
-        print("closing all app...\n")
-        self.Maestro.terminate()
-        self.SkyX.terminate()
-
-        print("App closed")
-
-        return True
-
-    def do_EOF(self, args):
-        return self.do_exit(self)
+    
 
     def cmdloop(self, intro=None):
         print(self.intro)
@@ -81,6 +47,20 @@ class Prompt(Cmd):
             except KeyboardInterrupt:
                 self.do_exit(self)
 
+##### GUI  #####
+
+
+
+
+
+
+
+
+
+
+
+
+###### User commands ######
     def do_start(self, update_TLE=True):
 
         '''\nInitialize all Telesto hardware and software for communication
@@ -137,6 +117,44 @@ class Prompt(Cmd):
             print("\nReady\n")
             return False
 
+    def do_exit(self, args):
+
+        '''\nexit the application.\n
+        \nexit()\n
+        '''
+
+        if self.is_following:
+            print("You are following a target. please stop following before exit.")
+            return False
+
+        # set back original settings
+        TSXSend("cddsoftCamera.BinX = "+self.original_binning_X)
+        TSXSend("cddsoftCamera.BinY = " + self.original_binning_Y)
+
+        init_file = open(
+            'C:\\Users\\admin\\Documents\\Software Bisque\\TheSkyX Professional Edition\\Imaging System Profiles\\ImagingSystem.ini',
+            'rt')
+
+        content = init_file.read()
+        content = content.replace(self.session_name, self.original_session_name)
+        init_file.close()
+        init_file = open(
+            'C:\\Users\\admin\\Documents\\Software Bisque\\TheSkyX Professional Edition\\Imaging System Profiles\\ImagingSystem.ini',
+            'wt')
+        init_file.write(content)
+        init_file.close()
+
+        print("Disconnect Cam...\n")
+        camDisconnect("Imager")
+
+        print("closing all app...\n")
+        self.Maestro.terminate()
+        self.SkyX.terminate()
+
+        print("App closed")
+
+        return True
+
     def do_update_tle(self, args):
             
             '''\nUpdate TLE files
@@ -147,7 +165,111 @@ class Prompt(Cmd):
             self._init_file()
     
             return False
+
     
+    def do_target_celestial_body(self, arg):
+
+        '''\nMove the telescope to the body
+        target_celestial_body [object name]\n'''
+
+        if not self._check_start():
+            return False
+
+        if targExists(arg) == "No":
+            print("Enter a valid target")
+            return False
+
+        if self.is_following:
+            print("You are following a satellite. Please stop following before moving to another target")
+            return False
+
+        if arg == "Sun":
+            print("Are you sure you want to target the Sun ? Make sure to have the correct equipment.\n")
+            print("To confirm the command enter it again.")
+            if not self.confirm:
+                self.confirm = True
+                return False
+
+        self.confirm = False
+        slew(arg)
+        return
+
+    def do_target_satellites(self, arg):
+
+        '''\nMove the telescope to debris and then follow it. 
+        target_debris [catalog number : NORAD ID]\n'''
+
+        if not self._check_start():
+            return False
+
+        if self.is_following:
+            print("You are following a satellite. Please stop following before moving to another target")
+            return False
+
+        args = arg.split()
+        if len(args) != 1:
+            print("\nInvalid argument number: target_satellites [catalog number]\n")
+            return False
+        
+        if int(args[0]) not in self.satellites:
+            print("\nInvalid target: please use an existing target\n")
+            return False
+
+        self.target = self.satellites[int(args[0])]
+
+        self._follow_sat()
+        return
+
+    def do_slew(self, arg):
+
+        '''\nMove the telescope to the coordinates
+        slew [ra] [dec]\n'''
+
+        if not self._check_start():
+            return False
+
+        if self.is_following:
+            print("You are following a satellite. Please stop following before moving to another target")
+            return False
+
+        args = arg.split()
+        if len(args) != 2:
+            print("\nInvalid argument number: slew [ra] [dec]\n")
+            return False
+        print('slew to', args[0], args[1])
+        slewToCoords((str(args[0]), str(args[1])), "Target")
+        return 
+        
+    def do_set_bin(args):
+        """\nChange X and Y bin of the camera.\n
+            Format: set_bin [BinX] [BinY]\n"""
+        splitted_args = args.split()
+
+        if len(splitted_args) != 2:
+            print("Wrong number of argument\n"
+                  "Please use the right format. Use help set_bin to learn more.\n")
+
+        TSXSend("ccdsoftCamera.BinX = "+splitted_args[0])
+        TSXSend("ccdsoftCamera.BinY = "+splitted_args[1])
+
+
+# Quit the program without closing the software
+    def do_EOF(self, args):
+        return self.do_exit(self)
+
+
+
+
+###### These methods are used by the commands ######
+
+#--------------## Start methods ##-------------
+    def _launch_software(self):
+
+        self.OSBus = Popen('C:\\Program Files (x86)\\Officina Stellare Srl\\OSBusSetup\\OSBusController.exe', stdout=DEVNULL)
+        self.Maestro = Popen('C:\\Program Files (x86)\\Astrometric\\Maestro\\Maestro.exe')
+        self.SkyX = Popen('C:\\Program Files (x86)\\Software Bisque\\TheSkyX Professional Edition\\TheSkyX.exe')
+
+# load all satellites and debris from TLE files
     def _init_file(self):
         # Read URLs from text files
         debris_urls, satellites_urls, personal_paths = self._read_url()
@@ -163,7 +285,16 @@ class Prompt(Cmd):
         self._load_file("sat", personal_paths)
 
         print("Loaded", len(self.satellites), "debris and satellites")
+    
+    def _load_file(self, url_type, urls):
 
+        for url in urls:
+            temp = load.tle_file(url, reload=True)
+            if url_type == "deb":
+                self.satellites.update({debris.model.satnum: debris for debris in temp})
+            elif url_type == "sat":
+                self.satellites.update({sat.model.satnum: sat for sat in temp})
+    
     @staticmethod
     def _read_url():
 
@@ -191,113 +322,160 @@ class Prompt(Cmd):
 
         return debris_url, satellites_url, personal_path
 
-    def _load_file(self, url_type, urls):
-
-        for url in urls:
-            temp = load.tle_file(url, reload=True)
-            if url_type == "deb":
-                self.satellites.update({debris.model.satnum: debris for debris in temp})
-            elif url_type == "sat":
-                self.satellites.update({sat.model.satnum: sat for sat in temp})
-
     def _init_time(self):
         self.ts = load.timescale()
         self.time = self.ts.now()
         print("You start observation at : " + str(self.time.astimezone(datetime.now().astimezone().tzinfo)))
+    
+    @staticmethod
+    def _write_url(url_type, url):
+        name = ''
+        if url_type == "sat":
+            name = 'satellites_url.txt'
+            file = open(name, 'r')
+        elif url_type == "deb":
+            name = 'debris_url.txt'
+            file = open(name, 'r')
+        elif url_type == "perso":
+            name = 'personal_tle.txt'
+            file = open(name, 'r')
+        else:
+            print("Invalid argument: type should be deb, sat or perso")
+            return False
 
+        lines = file.readlines()
+
+        if url+"\n" in lines:
+            print("Invalid URL: The URL already exits")
+            return False
+        file.close()
+
+        file = open(name, 'a')
+        file.write(url + '\n')
+        file.close()
+        print("Url: "+url+" correctly written")
+
+# Check if the program has started
     def _check_start(self):
         if not self.has_started:
-            print("\nlaunch starting procedure first\n")
+            print("\nLaunch starting procedure first\n")
         return self.has_started
 
-    def _launch_software(self):
+#--------------## End methods ##-------------
 
-        self.OSBus = Popen('C:\\Program Files (x86)\\Officina Stellare Srl\\OSBusSetup\\OSBusController.exe', stdout=DEVNULL)
-        self.Maestro = Popen('C:\\Program Files (x86)\\Astrometric\\Maestro\\Maestro.exe')
-        self.SkyX = Popen('C:\\Program Files (x86)\\Software Bisque\\TheSkyX Professional Edition\\TheSkyX.exe')
 
-    def do_target_celestial_body(self, arg):
 
-        '''\nMove the telescope to the body
-        target_celestial_body [object name]\n'''
+#--------------## High-level ##-------------
 
-        if not self._check_start():
-            return False
+    def _follow_sat(self):
+        coordinates_ra_dec, coordinates_alt_az = self._compute_relative_position()
+        i = 0
+        while self.is_following and coordinates_alt_az[0].degrees >= 10 and i<2:
+            coordinates_ra_dec, coordinates_alt_az = self._compute_relative_position()
+            print("Recompute position : " + str(coordinates_ra_dec[0]) + " " + str(coordinates_ra_dec[1]))
+            slewToCoordsAzAlt((str(coordinates_alt_az[1]._degrees), str(coordinates_alt_az[0]._degrees)), self.target.name)
+            time.sleep(1) # wait 10 secondes before updating the position
+            i = i + 1
 
-        if targExists(arg) == "No":
-            print("Enter a valid target")
-            return False
+        if coordinates_alt_az[0].degrees <= 10:
+            print("Target too low in sky. Stop following")
+        
+        self.is_following = False
 
-        if self.is_following:
-            print("You are following a satellite. Please stop following before moving to another target")
-            return False
-
-        if arg == "Sun":
-            print("Are you sure you want to target the Sun ? Make sure to have the correct equipment.\n")
-            print("To confirm the command enter it again.")
-            if not self.confirm:
-                self.confirm = True
-                return False
-
-        self.confirm = False
-        slew(arg)
-        return False
-
-    def do_target_satellites(self, arg):
-
-        '''\nMove the telescope to debris
-        target_debris [catalog number : NORAD ID]\n'''
-
-        if not self._check_start():
-            return False
-
-        if self.is_following:
-            print("You are following a satellite. Please stop following before moving to another target")
-            return False
-
-        args = arg.split()
-        if len(args) != 1:
-            print("\nInvalid argument number: target_satellites [catalog number]\n")
+    def _follow_sat_using_rate1(self):
+        print('\n')
+        start = time.perf_counter()
+        coordinates_ra_dec, coordinates_alt_az = self._compute_relative_position(True)
+        if coordinates_alt_az[0].degrees <= 10:
+            print("Target will be too low in sky. Stop following\n")
             return False
         
-        if int(args[0]) not in self.satellites:
-            print("\nInvalid target: please use an existing target\n")
-            return False
+        print('Celestial coordinates : RA ', coordinates_ra_dec[0].hours, '- Dec', coordinates_ra_dec[1].degrees)
 
-        if not self._slew_coord(arg):
-            print("whut")
-            return False
+        print('Aligning the telescope')
+        #slew
+        slewToCoords((str(coordinates_ra_dec[0]._hours), str(coordinates_ra_dec[1]._degrees)), self.target.name)
+        print('Telesto is in the target path\n')
+        
+        #Calculating the rate :
+        print('Calculating celestial rate')
+        ra_rate, dec_rate = self._compute_celestial_rate(True)
+        #display the rate 
+        print('Celestial rate : RA ', ra_rate.arcseconds.per_second, '- Dec', dec_rate.arcseconds.per_second)
 
-        print('Performing rate test')
-        self._perform_test()
-        # set-uping thread to make the following asynchronous
-        self.follow_thread = threading.Thread(target=self._follow_sat())
-        print("Start following target")
+        
+
+        print('time elapsed = ', time.perf_counter() - start,'\n')
+
+        print('##################################')
+        disp = 0
+        delay = 2
+        while time.perf_counter() - start < 95-delay:
+            time.sleep(1)
+            if disp%5 == 0:
+                print('Waiting the target to be in the field of view',time.perf_counter() - start,'s')
+            disp += 1
+        print('##################################\n')
+        print('time elapsed = ', time.perf_counter() - start,'\n')
+
+        print('Start following')
         self.is_following=True
-        self._follow_sat()
-        self.follow_thread.start()
-        return True
+        #display the rate 
+        print('Celestial rate : RA ', ra_rate.arcseconds.per_second, '- Dec', dec_rate.arcseconds.per_second,'\n')
+        setTrackingRate((str(ra_rate.arcseconds.per_second),str(dec_rate.arcseconds.per_second)))
 
-    def do_slew(self, arg):
+        coordinates_ra_dec, coordinates_alt_az = self._compute_relative_position()
+        print('Celestial coordinates : RA ', coordinates_ra_dec[0].hours, '- Dec', coordinates_ra_dec[1].degrees)
 
-        '''\nMove the telescope to the coordinates
-        slew [ra] [dec]\n'''
 
-        if not self._check_start():
-            return False
 
-        if self.is_following:
-            print("You are following a satellite. Please stop following before moving to another target")
-            return False
 
-        args = arg.split()
-        if len(args) != 2:
-            print("\nInvalid argument number: slew [ra] [dec]\n")
-            return False
-        print('slew to', args[0], args[1])
-        slewToCoords((str(args[0]), str(args[1])), "Target")
-        
 
+
+
+
+#--------------## Compute, Slew ##-------------
+
+# Compute coordinates of the satellite : ra, dec, alt, az
+    def _compute_relative_position(self, offset=0):   # using https://rhodesmill.org/skyfield/earth-satellites.html
+        difference = self.target - self.observatory
+        if offset:
+            print('actual time', self.ts.now().utc_datetime())
+            prevision = self.ts.now().utc_datetime().replace(minute=self.ts.now().utc.minute + 10)  # add x minute to the current time
+            print('next minute', prevision)
+            topocentric = difference.at(self.ts.utc(prevision)) # position of the satellite at the next minute, coordinates (x,y,z)
+        else:
+            topocentric = difference.at(self.ts.now()) # position of the satellite at the current time, coordinates (x,y,z)
+
+        #apparent = topocentric.apparent()
+        coordinates_ra_dec = topocentric.radec(epoch='date') 
+        coordinates_alt_az = topocentric.altaz()  ## altaz('standard')
+
+        return coordinates_ra_dec, coordinates_alt_az
+    
+# Compute the rate and coordinate of the satellite : ra_rate, dec_rate, alt_rate, az_rate   
+    def _compute_celestial_rate(self,offset=0,frame='equatorial'):
+        difference = self.target - self.observatory
+        if offset:
+            prevision = self.ts.now().utc_datetime().replace(minute=self.ts.now().utc.minute + 1)  # add 1 minute to the current time
+
+            topocentric = difference.at(self.ts.utc(prevision)) # position of the satellite at the next minute, coordinates (x,y,z)
+        else:
+            topocentric = difference.at(self.ts.now()) # position of the satellite at the current time, coordinates (x,y,z)
+
+        # Switch depend on the frame
+        if frame == 'equatorial': # Already tested, works
+            print(topocentric.frame_latlon_and_rates(skyfield.framelib.true_equator_and_equinox_of_date), sep='\n')
+            Dec, Ra, _, ra_rate, dec_rate, _ = topocentric.frame_latlon_and_rates(skyfield.framelib.true_equator_and_equinox_of_date)
+            print('Ra', Ra._hours, 'Dec', Dec._degrees, 'ra_rate', ra_rate.arcseconds.per_second, 'dec_rate', dec_rate.arcseconds.per_second)
+        elif frame == 'xxxx' : # Not tested, need to find another frame
+            print(topocentric.frame_latlon_and_rates(skyfield.framelib.xxxx), sep='\n')
+            Dec, Ra, _, ra_rate, dec_rate, _ = topocentric.frame_latlon_and_rates(skyfield.framelib.xxxx)
+            print('Ra', Ra._hours, 'Dec', Dec._degrees, 'ra_rate', ra_rate.arcseconds.per_second, 'dec_rate', dec_rate.arcseconds.per_second)
+                
+        return ra_rate, dec_rate
+    
+# Slewing to the satellite 
     def _slew_coord(self, arg):
         #-----Slew the telescope to the target
         self.target = self.satellites[int(arg)]
@@ -311,23 +489,11 @@ class Prompt(Cmd):
         slewToCoordsAzAlt((str(coordinates_alt_az[1]._degrees), str(coordinates_alt_az[0]._degrees)), self.target.name)
         return True
 
-    def _compute_relative_position(self, offset=0):   # using https://rhodesmill.org/skyfield/earth-satellites.html
-        difference = self.target - self.observatory
-        if offset:
-            print('actual time', self.ts.now().utc_datetime())
-            prevision = self.ts.now().utc_datetime().replace(minute=self.ts.now().utc.minute + 1)  # add x minute to the current time
-            print('next minute', prevision)
-            topocentric = difference.at(self.ts.utc(prevision)) # position of the satellite at the next minute, coordinates (x,y,z)
-        else:
-            topocentric = difference.at(self.ts.now()) # position of the satellite at the current time, coordinates (x,y,z)
 
-        #apparent = topocentric.apparent()
-        coordinates_ra_dec = topocentric.radec(epoch='date') 
-        coordinates_alt_az = topocentric.altaz()  ## altaz('standard')
 
-        return coordinates_ra_dec, coordinates_alt_az
-    
- #################
+
+
+ ################# experimental ####################
     def do_perform_test(self, arg):
         '''\nPerform some test \n'''
         #Initial verification:
@@ -357,49 +523,6 @@ class Prompt(Cmd):
         time.sleep(60)
         TSXSend("sky6RASCOMTele.SetTracking(1, 1, 0 ,0)")
 
-    def _follow_sat_using_rate1(self):
-        print('\n')
-        start = time.perf_counter()
-        coordinates_ra_dec, coordinates_alt_az = self._compute_relative_position(True)
-        if coordinates_alt_az[0].degrees <= 10:
-            print("Target will be too low in sky. Stop following\n")
-            return False
-        
-        print('Celestial coordinates : RA ', coordinates_ra_dec[0].hours, '- Dec', coordinates_ra_dec[1].degrees)
-
-        print('Aligning the telescope')
-        #slew
-        slewToCoords((str(coordinates_ra_dec[0]._hours), str(coordinates_ra_dec[1]._degrees)), self.target.name)
-        print('Telesto is in the target path\n')
-        
-        #Calculating the rate :
-        print('Calculating celestial rate')
-        ra_rate, dec_rate = self._compute_celestial_rate(True)
-        #display the rate 
-        print('Celestial rate : RA ', ra_rate.arcseconds.per_second, '- Dec', dec_rate.arcseconds.per_second)
-
-        
-
-        print('time elapsed = ', time.perf_counter() - start,'\n')
-
-        print('##################################')
-        disp = 0
-        while time.perf_counter() - start < 60:
-            time.sleep(1)
-            if disp%5 == 0:
-                print('Waiting the target to be in the field of view',time.perf_counter() - start,'s')
-            disp += 1
-        print('##################################\n')
-        print('time elapsed = ', time.perf_counter() - start,'\n')
-
-        print('Start following')
-        self.is_following=True
-        #display the rate 
-        print('Celestial rate : RA ', ra_rate.arcseconds.per_second, '- Dec', dec_rate.arcseconds.per_second,'\n')
-        setTrackingRate((str(ra_rate.arcseconds.per_second),str(dec_rate.arcseconds.per_second)))
-
-        coordinates_ra_dec, coordinates_alt_az = self._compute_relative_position()
-        print('Celestial coordinates : RA ', coordinates_ra_dec[0].hours, '- Dec', coordinates_ra_dec[1].degrees)
 
     def _follow_sat_using_rate2(self):
         start = time.perf_counter()
@@ -439,82 +562,15 @@ class Prompt(Cmd):
         self.is_following=True
         setTrackingRate((str(ra_rate),str(dec_rate)))  # Should be in arcseconds/second
 
-    def _compute_celestial_rate(self,offset=0):
-        difference = self.target - self.observatory
-        if offset:
-            prevision = self.ts.now().utc_datetime().replace(minute=self.ts.now().utc.minute + 1)  # add 1 minute to the current time
-
-            topocentric = difference.at(self.ts.utc(prevision)) # position of the satellite at the next minute, coordinates (x,y,z)
-        else:
-            topocentric = difference.at(self.ts.now()) # position of the satellite at the current time, coordinates (x,y,z)
-
-
-        print(topocentric.frame_latlon_and_rates(skyfield.framelib.true_equator_and_equinox_of_date), sep='\n')
-        Dec, Ra, _, ra_rate, dec_rate, _ = topocentric.frame_latlon_and_rates(skyfield.framelib.true_equator_and_equinox_of_date)
-        print('Ra', Ra._hours, 'Dec', Dec._degrees, 'ra_rate', ra_rate.arcseconds.per_second, 'dec_rate', dec_rate.arcseconds.per_second)
-        return ra_rate, dec_rate
-
-    def _follow_sat_using_loop(self):
-        print('\n')
-        start = time.perf_counter()
-        coordinates_ra_dec, coordinates_alt_az = self._compute_relative_position(True)
-        if coordinates_alt_az[0].degrees <= 10:
-            print("Target will be too low in sky. Stop following\n")
-            return False
-        
-        print('Celestial coordinates : RA ', coordinates_ra_dec[0].hours, '- Dec', coordinates_ra_dec[1].degrees)
-
-        print('Aligning the telescope')
-        #slew
-        slewToCoords((str(coordinates_ra_dec[0]._hours), str(coordinates_ra_dec[1]._degrees)), self.target.name)
-        print('Telesto is in the target path\n')
-
-        print('time elapsed = ', time.perf_counter() - start,'\n')
-        print('##################################')
-        disp = 0
-        while time.perf_counter() - start < 60:
-            time.sleep(1)
-            if disp%5 == 0:
-                print('Waiting the target to be in the field of view',time.perf_counter() - start,'s')
-            disp += 1
-        print('##################################\n')
-        print('time elapsed = ', time.perf_counter() - start,'\n')
-
-        print('Start following')
-        self.is_following=True
-
-        while self.is_following and coordinates_alt_az[0].degrees >= 10 and time.perf_counter() - start < 120:
-            coordinates_ra_dec, coordinates_alt_az = self._compute_relative_position()
-            print("Recompute position : " + str(coordinates_ra_dec[0]) + " " + str(coordinates_ra_dec[1]))
-            slewToCoords((str(coordinates_ra_dec[0]._hours), str(coordinates_ra_dec[1]._degrees)), self.target.name)
-            time.sleep(2)
-            
-        self.is_following=False
-        print('Celestial coordinates : RA ', coordinates_ra_dec[0].hours, '- Dec', coordinates_ra_dec[1].degrees)
-
+    
 
     def do_kill(self):
         """Kill the current process"""
         print('Killing the current process')
         # exit the program
         sys.exit(0)
-##########################
 
 
-    def _follow_sat(self):
-        coordinates_ra_dec, coordinates_alt_az = self._compute_relative_position()
-        i = 0
-        while self.is_following and coordinates_alt_az[0].degrees >= 10 and i<2:
-            coordinates_ra_dec, coordinates_alt_az = self._compute_relative_position()
-            print("Recompute position : " + str(coordinates_ra_dec[0]) + " " + str(coordinates_ra_dec[1]))
-            slewToCoordsAzAlt((str(coordinates_alt_az[1]._degrees), str(coordinates_alt_az[0]._degrees)), self.target.name)
-            time.sleep(1) # wait 10 secondes before updating the position
-            i = i + 1
-
-        if coordinates_alt_az[0].degrees <= 10:
-            print("Target too low in sky. Stop following")
-        
-        self.is_following = False
 
     def do_stop_following(self, arg):
         '''\nStop following the current satellite \n'''
@@ -539,9 +595,12 @@ class Prompt(Cmd):
         if self.has_started:
             self._load_file(args[0], args[1])
 
-        return False
+        return
 
-    # TODO: Make this command work
+
+
+
+# TODO: Make this command work
     #def do_take_picture(self, arg):
 
         '''\nTake a picture with selected filter\n
@@ -559,47 +618,17 @@ class Prompt(Cmd):
         #return False
 
     # TODO: Not sure how its works
-    @staticmethod
+    #@staticmethod
     #def do_dither():
     #    '''\nTake a series of images of a single field'''
     #    dither()
 
-    def do_set_bin(args):
-        """\nChange X and Y bin of the camera.\n
-            Format: set_bin [BinX] [BinY]\n"""
-        splitted_args = args.split()
+ # set-uping thread to make the following asynchronous
+        self.follow_thread = threading.Thread(target=self._follow_sat())
+        print("Start following target")
+        self.is_following=True
+        self._follow_sat()
+        self.follow_thread.start()
 
-        if len(splitted_args) != 2:
-            print("Wrong number of argument\n"
-                  "Please use the right format. Use help set_bin to learn more.\n")
 
-        TSXSend("ccdsoftCamera.BinX = "+splitted_args[0])
-        TSXSend("ccdsoftCamera.BinY = "+splitted_args[1])
-
-    @staticmethod
-    def _write_url(url_type, url):
-        name = ''
-        if url_type == "sat":
-            name = 'satellites_url.txt'
-            file = open(name, 'r')
-        elif url_type == "deb":
-            name = 'debris_url.txt'
-            file = open(name, 'r')
-        elif url_type == "perso":
-            name = 'personal_tle.txt'
-            file = open(name, 'r')
-        else:
-            print("Invalid argument: type should be deb, sat or perso")
-            return False
-
-        lines = file.readlines()
-
-        if url+"\n" in lines:
-            print("Invalid URL: The URL already exits")
-            return False
-        file.close()
-
-        file = open(name, 'a')
-        file.write(url + '\n')
-        file.close()
-        print("Url: "+url+" correctly written")
+#############################""

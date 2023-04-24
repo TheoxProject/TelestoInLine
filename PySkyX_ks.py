@@ -25,9 +25,14 @@ import math
 import pathlib
 
 ################# Extension ###################
-def setTrackingRate(rate):
+def setTrackingRate(rate=['0','0'], switch=True):
     dDec = rate[0]
     dRa = rate[1]
+
+    if not switch: # Turn off tracking
+        TSXSend("sky6RASCOMTele.SetTracking(0, 1, 0 ,0)")
+        return
+
     print("Setting tracking rate to : (dRa)" + dRa + " arcseconds/second, (dDec)" + dDec+ " arcseconds/second")
     if TSXSend("sky6RASCOMTele.IsParked()") == "true":
         print("     NOTE: Unparking mount.")
@@ -88,6 +93,19 @@ def slewToCoordsAzAlt(coords, name):
     mntAz = round(float(TSXSend("sky6RASCOMTele.dAz")), 2)
     mntAlt = round(float(TSXSend("sky6RASCOMTele.dAlt")), 2)
     print("NOTE: Mount currently at: " + str(mntAz) + " az., " + str(mntAlt) + " alt.")
+
+def getPosition():
+    # Get Alt,Az
+    TSXSend("sky6RASCOMTele.GetAzAlt()")
+    mntAz = round(float(TSXSend("sky6RASCOMTele.dAz")), 6)
+    mntAlt = round(float(TSXSend("sky6RASCOMTele.dAlt")), 6)
+
+    #Get RA,Dec
+    TSXSend("sky6RASCOMTele.GetRaDec()")
+    mntRa = round(float(TSXSend("sky6RASCOMTele.dRa")), 6)
+    mntDec = round(float(TSXSend("sky6RASCOMTele.dDec")), 6)
+    return [mntRa, mntDec, mntAz, mntAlt]
+
 
 ############################################
 
