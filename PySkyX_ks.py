@@ -30,7 +30,7 @@ def setTrackingRate(rate=['0','0'], switch=True):
     dRa = rate[1]
 
     if not switch: # Turn off tracking
-        TSXSend("sky6RASCOMTele.SetTracking(0, 1, 0 ,0)")
+        TSXSend("sky6RASCOMTele.SetTracking(1, 1, 0 ,0)")
         return
 
     print("Setting tracking rate to : (dRa)" + dRa + " arcseconds/second, (dDec)" + dDec+ " arcseconds/second")

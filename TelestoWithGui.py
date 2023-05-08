@@ -44,8 +44,12 @@ class MainWindow(tk.Frame):
         self.title_label = ttk.Label(self.master, text="Welcome to the TELESTO control software", font=("Arial", 20))
         self.title_label.grid(row=0, column=0, columnspan=7, pady=10, padx=40)
 
+        self.session_name_label = ttk.Label(self.master, text="Session name :")
+        self.session_name_label.grid(row=4, column=2, padx=5, pady=5)
+        self.session_name = ttk.Entry(self.master, width=10)
+        self.session_name.grid(row=4, column=3, padx=5, pady=5)
         self.start_button = ttk.Button(self.master, text="     Start", command=self.start, width=10)
-        self.start_button.grid(row=4, column=3, columnspan=3)
+        self.start_button.grid(row=4, column=3, columnspan=4)
 
         self.close_button = ttk.Button(self.master, text="    Close", command=self.close, width=10, state="disabled")
         self.close_button.grid(row=10, column=3, columnspan=3)
@@ -96,9 +100,10 @@ class MainWindow(tk.Frame):
         self.close_button.configure(state="normal")
         self.follow_button.configure(state="normal")
         self.start_button.configure(state="disabled")
+        session_name = self.session_name.get()
         try:
             # Run the callback
-            self.start_callback()
+            self.start_callback(session_name)
         except:
             messagebox.showerror("Error", "Cannot start the software")
             # Change button states

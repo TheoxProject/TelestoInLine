@@ -41,11 +41,10 @@ class TelestoClass:
     
 
     ##### Public methods call by the user #####
-    def start(self):
+    def start(self, session_name):
         '''
         \nInitialize all Telesto hardware and software for communication
-        \nstart(update_TLE)
-        \nupdate_TLE: if True update TLE files before starting\n
+        \nstart(session_name)\n
         '''
         ## Preliminary checks
         if self.has_started:
@@ -59,14 +58,14 @@ class TelestoClass:
             return False
         else:
             # initialize time
-            self.__init_time(self)
+            self.__init_time()
 
             # initialize file
-            self.__init_file(self)
+            self.__init_file()
 
             # Set session informations
-            print("Enter a session name for your observation")
-            self.session_name = input()
+            self.session_name = session_name
+            print("Session name set to "+self.session_name)
             init_file = open('C:\\Users\\admin\\Documents\\Software Bisque\\TheSkyX Professional Edition\\Imaging System Profiles\\ImagingSystem.ini', 'rt')
             content = init_file.read()
             content = content.replace("m_csobserver="+self.original_session_name,"m_csobserver="+self.session_name)
@@ -74,9 +73,10 @@ class TelestoClass:
             init_file = open('C:\\Users\\admin\\Documents\\Software Bisque\\TheSkyX Professional Edition\\Imaging System Profiles\\ImagingSystem.ini', 'wt')
             init_file.write(content)
             init_file.close()
+            
 
             # start necessary software
-            self.__launch_software(self)
+            self.__launch_software()
 
             # wait for software to be correctly launch
             time.sleep(5)
@@ -158,7 +158,7 @@ class TelestoClass:
 
         # Start error thread
         self.error_thread_stop_event = threading.Event()  #Reset the flag
-        self.X = threading.Thread(target=self.__control_error).start()
+        self.tracking_error_thread = threading.Thread(target=self.__control_error).start()
         return True,""
 
     def stop_following(self):
@@ -243,17 +243,17 @@ class TelestoClass:
 
         # load each files then append it in a general dictionary
         print("Load debris files\n")
-        self.__load_file(self, "deb", debris_urls)
+        self.__load_file("deb", debris_urls)
 
         print("Load satellites files")
-        self.__load_file(self, "sat", satellites_urls)
+        self.__load_file("sat", satellites_urls)
 
         print("Load personal tle")
-        self.__load_file(self, "sat", personal_paths)
+        self.__load_file("sat", personal_paths)
 
         print("Loaded", len(self.satellites), "debris and satellites")
 
-    def __read_url(filename):
+    def __read_url(self, filename):
         '''
         Function that reads URL inside a text files in the same folder, return a list of urls.
 
@@ -342,22 +342,28 @@ class TelestoClass:
         if alt.degrees <= 10:
             print("Target will be too low in sky. Stop following\n")
             return False
-        print('Coordinates : Altitude', alt.degrees, '- Azimuth', az.degrees)
+        print('Coordinates : Altitude', alt._degrees, '- Azimuth', az._degrees)
 
         #Calculating the rate :
         print('Calculating celestial rate')
         dec, ra, _, ra_rate, dec_rate, _ = self.__compute_celestial_parameters(deltaT_ahead)
         #display the coordinates and rates
-        print('Celestial coordinates : RA ', ra.hours, '- Dec', dec.degrees)
+        print('Celestial coordinates : RA ', ra._hours, '- Dec', dec._degrees)
         print('Celestial rate : RA ', ra_rate.arcseconds.per_second, '- Dec', dec_rate.arcseconds.per_second,'\n')
+        print('time elapsed = ', time.perf_counter() - start,'\n')
+
+        print('Aligning the telescope')
+        #slew
+        slewToCoords((str(ra._hours), str(dec._degrees)), self.target.name)
+        print('Telesto is in the target path\n')
         print('time elapsed = ', time.perf_counter() - start,'\n')
 
         print('##################################')
         disp = 0
         time_send_cmd = 2 # Time needed to send the command to the telescope, [s]
         while time.perf_counter() - start < deltaT_ahead-time_send_cmd:
-            time.sleep(1)
-            if disp%5 == 0:
+            time.sleep(0.01)
+            if disp%200 == 0:
                 print('Waiting the target to be in the field of view',time.perf_counter() - start,'s')
             disp += 1
         print('##################################\n')
@@ -377,7 +383,7 @@ class TelestoClass:
         Input : [params]
         Ouput : None
         '''
-        threshold = 0.001 # Threshold of the error
+        threshold = 0.0001 # Threshold of the error
 
         print('Start controlling error')
         while not self.error_thread_stop_event.is_set():
@@ -393,9 +399,9 @@ class TelestoClass:
             
             # Compute the mean square error
             dec, ra, _, _, _, _ = self.__compute_celestial_parameters()
-            mnt_ra, mnt_dec = getPosition()
-            error_ra = abs(ra.hours - mnt_ra)/24
-            error_dec = abs(dec.degrees - mnt_dec)/360
+            mnt_ra, mnt_dec, _, _ = getPosition()
+            error_ra = abs(ra._hours - mnt_ra)/24
+            error_dec = abs(dec._degrees - mnt_dec)/360
             error = (error_ra**2 + error_dec**2)**0.5
             print('Error : ', error)
             if error > threshold:
