@@ -402,7 +402,7 @@ class TelestoClass:
 
         print('##################################')
         disp = 0
-        time_send_cmd = 2 # Time needed to send the command to the telescope, [s]
+        time_send_cmd = 1 # Time needed to send the command to the telescope, [s]
         while time.perf_counter() - start < deltaT_ahead-time_send_cmd:
             time.sleep(0.01)
             if disp%200 == 0:

@@ -105,6 +105,7 @@ class MainWindow(tk.Frame):
         self.close_button.configure(state="normal")
         self.follow_button.configure(state="normal")
         self.start_button.configure(state="disabled")
+        self.take_picture_button.configure(state="normal")
         session_name = self.session_name.get()
         try:
             # Run the callback
@@ -162,9 +163,15 @@ class MainWindow(tk.Frame):
             self.stop_follow_button.configure(state="normal")
 
     def take_picture(self):
+        
+        # Detect if it's only one picture or multiple pictures
+        if self.interval_pict.get() == "":
+            interval_pict = 0
+        else:
+            interval_pict = self.interval_pict.get()
 
         # convert arguments to int
-        args = [self.exposure_time.get(), self.binning_X.get(), self.binning_Y.get(), self.interval_pict.get()]
+        args = [self.exposure_time.get(), self.binning_X.get(), self.binning_Y.get(), interval_pict]
         try:
             args = [int(i) for i in args]
         except ValueError:
