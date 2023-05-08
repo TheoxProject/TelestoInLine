@@ -89,7 +89,7 @@ class MainWindow(tk.Frame):
         self.interval_pict.grid(row=10, column=4, columnspan=2)
 
         # Add an inforative label that will be update by the update_display method
-        self.info_label = ttk.Label(self.master, text="Waiting for the software to start", font=("Arial", 20))
+        self.info_label = ttk.Label(self.master, text="Waiting for the software to start", font=("Arial", 10))
         self.info_label.grid(row=13, column=1, columnspan=7, pady=10, padx=40)
         # Change slightly the font size and color for the info label
         self.info_label.configure(background="white")

@@ -174,7 +174,8 @@ class TelestoClass:
 
         # Start error thread
         self.error_thread_stop_event = threading.Event()  #Reset the flag
-        self.X = threading.Thread(target=self.__control_error).start()
+        self.tracking_error_thread = threading.Thread(target=self.__control_error)
+        self.tracking_error_thread.start()
         return True,""
 
     def stop_following(self):
@@ -192,6 +193,9 @@ class TelestoClass:
         #Stop error thread if running
         if self.tracking_error_thread is not None:
             self.error_thread_stop_event.set()
+        # Stop picture thread if running
+        if self.picture_thread is not None:
+            self.picture_thread_stop_event.set()
         #Stop Telescope movement
         setTrackingRate(switch=False) # stop tracking
 
@@ -242,6 +246,7 @@ class TelestoClass:
             self.status = "Taking pictures of NORAD ID "+self.target.name+"..."
             self.picture_thread_stop_event = threading.Event()  #Reset the flag
             self.picture_thread = threading.Thread(target=self.__take_picture, args=(interval))
+            self.picture_thread.start()
 
             return True,""
 
@@ -429,7 +434,12 @@ class TelestoClass:
 
         print('Start controlling error')
         while not self.error_thread_stop_event.is_set():
-            time.sleep(30)
+            # Waiting loop, need to close the thread if the stop_event is set
+            wait_time = 30 # [s]
+            for i in range(wait_time):
+                if self.error_thread_stop_event.is_set():
+                    return
+                time.sleep(1)
 
             alt, _ = self.__compute_alt_az(30)
             if alt.degrees <= 10:
@@ -468,7 +478,11 @@ class TelestoClass:
         TSXSend("ccdsoftCamera.TakeImage()")
         print("Picture taken")
         while not self.picture_thread_stop_event.is_set():
-            time.sleep(interval)
+            # Waiting loop, need to close the thread if the stop_event is set
+            for i in range(interval):
+                if self.picture_thread_stop_event.is_set():
+                    return
+                time.sleep(1)
             if self.is_following:
                 TSXSend("ccdsoftCamera.TakeImage()")
                 print("Picture taken")
