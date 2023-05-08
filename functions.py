@@ -32,6 +32,10 @@ class TelestoClass:
         #Threading
         self.tracking_error_thread = None
         self.error_thread_stop_event = threading.Event()
+        self.picture_thread = None
+        self.picture_thread_stop_event = threading.Event()
+        # String containing program status
+        self.status = "Please start the program"
         
         self.session_name = ''
         # if crash these are the original settings for observer and binning
@@ -46,6 +50,9 @@ class TelestoClass:
         \nInitialize all Telesto hardware and software for communication
         \nstart(session_name)\n
         '''
+        # Update status
+        self.status = "Starting..."
+
         ## Preliminary checks
         if self.has_started:
             print("Already started")
@@ -89,7 +96,10 @@ class TelestoClass:
                 return True
 
             self.has_started = True
-            print("\nReady\n")
+            
+            # Update status
+            self.status = "Ready"
+
             return False
 
     def exit(self):
@@ -97,6 +107,8 @@ class TelestoClass:
         \nexit the application.\n
         \nexit()\n
         '''
+        # Update status
+        self.status = "Closing..."
 
         if self.is_following:
             print("You are following a target. please stop following before exit.")
@@ -133,6 +145,8 @@ class TelestoClass:
 
         '''\nMove the telescope to debris and then follow it. 
         target_debris [catalog number : NORAD ID]\n'''
+        # Update status
+        self.status = "Following..."
 
         # Preliminary checks
         if not self.has_started:
@@ -152,19 +166,24 @@ class TelestoClass:
             return False,"Invalid target: please use an existing target"
 
         self.target = self.satellites[int(args[0])]
+        # Update status
+        self.status = "Following NORAD ID "+self.target.name+"..."
 
         if not self.__follow_sat_using_rate():
             return False,"Target will be too low in the sky. Please choose another target"
 
         # Start error thread
         self.error_thread_stop_event = threading.Event()  #Reset the flag
-        self.tracking_error_thread = threading.Thread(target=self.__control_error).start()
+        self.X = threading.Thread(target=self.__control_error).start()
         return True,""
 
     def stop_following(self):
         '''
         \nStop following the target\n
         '''
+        # Update status
+        self.status = "Stopping..."
+
         if not self.is_following:
             print("You are not following a target")
             return False,"You are not following a target"
@@ -175,9 +194,13 @@ class TelestoClass:
             self.error_thread_stop_event.set()
         #Stop Telescope movement
         setTrackingRate(switch=False) # stop tracking
+
+        # Update status
+        self.status = "Ready"
+
         return True, ""
 
-    def take_picture(self, exposure_time, binning_X, binning_Y):
+    def take_picture(self, exposure_time, binning_X, binning_Y, interval=0):
         '''
         \nTake a picture \n
         input: exposure time, binning X, binning Y \n
@@ -195,17 +218,36 @@ class TelestoClass:
             print("\nInvalid argument: binning must be greater than 0\n")
             return False,"Invalid argument: binning must be greater than 0"
         
-        # Take picture
-        print("Taking picture...")
-        TSXSend("ccdsoftCamera.ExposureTime = " + str(exposure_time))
-        TSXSend("ccdsoftCamera.BinX = "+str(binning_X))
-        TSXSend("ccdsoftCamera.BinY = " + str(binning_Y))
-        TSXSend("ccdsoftCamera.TakeImage()")
-        print("Picture taken")
-        return True,""
+        if interval <= 0:
+            # Update status
+            self.status = "Taking picture..."
+            # Take a single picture
+            print("Taking picture...")
+            TSXSend("ccdsoftCamera.ExposureTime = " + str(exposure_time))
+            TSXSend("ccdsoftCamera.BinX = "+str(binning_X))
+            TSXSend("ccdsoftCamera.BinY = " + str(binning_Y))
+            TSXSend("ccdsoftCamera.TakeImage()")
+            print("Picture taken")
+            # Update status
+            self.status = "Following NORAD ID "+self.target.name+"..."
+            return True,""
+
+        else:
+            # Set camera settings
+            TSXSend("ccdsoftCamera.ExposureTime = " + str(exposure_time))
+            TSXSend("ccdsoftCamera.BinX = "+str(binning_X))
+            TSXSend("ccdsoftCamera.BinY = " + str(binning_Y))
+            # Start a thread to take pictures
+            # Update status
+            self.status = "Taking pictures of NORAD ID "+self.target.name+"..."
+            self.picture_thread_stop_event = threading.Event()  #Reset the flag
+            self.picture_thread = threading.Thread(target=self.__take_picture, args=(interval))
+
+            return True,""
+
 
     def update_display(self):
-        return str(random.randint(0, 100))
+        return self.status
 
 
 
@@ -411,6 +453,23 @@ class TelestoClass:
                 return
         return
     
+    def __take_picture(self, interval):
+        '''
+        Take a picture of the satellite each X second
+
+        Input : [params]
+        Ouput : None
+        '''
+        print('Start taking picture')
+        while not self.picture_thread_stop_event.is_set():
+            time.sleep(interval)
+            if self.is_following:
+                TSXSend("ccdsoftCamera.TakeImage()")
+                print("Picture taken")
+            else :
+                break
+        return
+
 
 
     

@@ -52,7 +52,7 @@ class MainWindow(tk.Frame):
         self.start_button.grid(row=4, column=3, columnspan=4)
 
         self.close_button = ttk.Button(self.master, text="    Close", command=self.close, width=10, state="disabled")
-        self.close_button.grid(row=10, column=3, columnspan=3)
+        self.close_button.grid(row=11, column=3, columnspan=3)
 
         self.Norad_label = ttk.Label(self.master, text="NORAD ID :")
         self.Norad_label.grid(row=5, column=1, padx=5, pady=5)
@@ -82,6 +82,11 @@ class MainWindow(tk.Frame):
         self.binning_Y_label.grid(row=9, column=2, columnspan=2)
         self.binning_Y = ttk.Entry(self.master, width=10)
         self.binning_Y.grid(row=9, column=4, columnspan=2)
+
+        self.interval_pict_label = ttk.Label(self.master, text="(Only for multiple picture)    Interval (s) :                      ")
+        self.interval_pict_label.grid(row=10, column=1, columnspan=3)
+        self.interval_pict = ttk.Entry(self.master, width=10)
+        self.interval_pict.grid(row=10, column=4, columnspan=2)
 
         # Add an inforative label that will be update by the update_display method
         self.info_label = ttk.Label(self.master, text="Waiting for the software to start", font=("Arial", 20))
@@ -159,28 +164,30 @@ class MainWindow(tk.Frame):
     def take_picture(self):
 
         # convert arguments to int
-        args = [self.exposure_time.get(), self.binning_X.get(), self.binning_Y.get()]
+        args = [self.exposure_time.get(), self.binning_X.get(), self.binning_Y.get(), self.interval_pict.get()]
         try:
             args = [int(i) for i in args]
         except ValueError:
             messagebox.showerror("Error", "Exposure time and binning must be integers")
-        exposure_time, binning_X, binning_Y = args
+        exposure_time, binning_X, binning_Y, interval_pict = args
         
+        # Run the callback
         try:
-            success, error_message = self.take_picture_callback(exposure_time, binning_X, binning_Y)
+            success, error_message = self.take_picture_callback(exposure_time, binning_X, binning_Y, interval_pict)
             if not success:
                 messagebox.showerror("Error", error_message)
+                return
         except Exception as e:
             messagebox.showerror("Error", f"Cannot take a picture : {e}")
 
-        
+  
     def update_display(self):
         # get current state of Telesto and update info_label
         info = self.update_display_callback()
         self.info_label.configure(text=info)
         
-        # call update_display method again in 10 milliseconds
-        self.master.after(1000, self.update_display)
+        # call update_display method again in 100 milliseconds
+        self.master.after(100, self.update_display)
         
 
 
