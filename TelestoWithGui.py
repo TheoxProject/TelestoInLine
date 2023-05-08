@@ -165,10 +165,9 @@ class MainWindow(tk.Frame):
     def take_picture(self):
         
         # Detect if it's only one picture or multiple pictures
-        if self.interval_pict.get() == "":
+        interval_pict = self.interval_pict.get()
+        if interval_pict == "":
             interval_pict = 0
-        else:
-            interval_pict = self.interval_pict.get()
 
         # convert arguments to int
         args = [self.exposure_time.get(), self.binning_X.get(), self.binning_Y.get(), interval_pict]

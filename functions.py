@@ -402,7 +402,7 @@ class TelestoClass:
 
         print('##################################')
         disp = 0
-        time_send_cmd = 1 # Time needed to send the command to the telescope, [s]
+        time_send_cmd = 3 # Time needed to send the command to the telescope, [s]
         while time.perf_counter() - start < deltaT_ahead-time_send_cmd:
             time.sleep(0.01)
             if disp%200 == 0:
@@ -441,7 +441,11 @@ class TelestoClass:
             
             # Compute the mean square error
             dec, ra, _, _, _, _ = self.__compute_celestial_parameters()
-            mnt_ra, mnt_dec, _, _ = getPosition()
+            try:
+                mnt_ra, mnt_dec, _, _ = getPosition()
+            except:
+                print('Error while getting the position')
+                continue
             error_ra = abs(ra._hours - mnt_ra)/24
             error_dec = abs(dec._degrees - mnt_dec)/360
             error = (error_ra**2 + error_dec**2)**0.5
@@ -461,6 +465,8 @@ class TelestoClass:
         Ouput : None
         '''
         print('Start taking picture')
+        TSXSend("ccdsoftCamera.TakeImage()")
+        print("Picture taken")
         while not self.picture_thread_stop_event.is_set():
             time.sleep(interval)
             if self.is_following:
