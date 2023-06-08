@@ -34,6 +34,7 @@ class TelestoClass:
         self.error_thread_stop_event = threading.Event()
         self.picture_thread = None
         self.picture_thread_stop_event = threading.Event()
+
         # String containing program status
         self.status = "Please start the program"
         
@@ -174,7 +175,7 @@ class TelestoClass:
 
         # Start error thread
         self.error_thread_stop_event = threading.Event()  #Reset the flag
-        self.tracking_error_thread = threading.Thread(target=self.__control_error)
+        self.tracking_error_thread = threading.Thread(target=self.__control_error_thread)
         self.tracking_error_thread.start()
         return True,""
 
@@ -204,10 +205,10 @@ class TelestoClass:
 
         return True, ""
 
-    def take_picture(self, exposure_time, binning_X, binning_Y, interval=0):
+    def take_picture(self, exposure_time, binning_X, binning_Y, filter, interval=0, duration=0):
         '''
         \nTake a picture \n
-        input: exposure time, binning X, binning Y \n
+        input: exposure time, binning X, binning Y, filter, interval between picture, duration of the thread \n
         '''
         # Preliminary checks
         if not self.has_started:
@@ -222,34 +223,101 @@ class TelestoClass:
             print("\nInvalid argument: binning must be greater than 0\n")
             return False,"Invalid argument: binning must be greater than 0"
         
-        if interval <= 0:
+        ## Settting parameters
+        TSXSend("ccdsoftCamera.ExposureTime = " + str(exposure_time))
+        TSXSend("ccdsoftCamera.BinX = "+str(binning_X))
+        TSXSend("ccdsoftCamera.BinY = " + str(binning_Y))
+
+        # Connect to the filter wheel
+        if not TSXSend("ccdsoftCamera::filterWheelIsConnected()"):
+            TSXSend("ccdsoftCamera::filterWheelConnect()")
+        # Set filter :
+        filter_num = 0
+        if filter == "Filter1":
+            TSXSend("ccdsoftCamera.FilterIndexZeroBased = 0")
+            filter_num = 0
+        elif filter == "Filter2":
+            TSXSend("ccdsoftCamera.FilterIndexZeroBased = 1")
+            filter_num = 1
+        elif filter == "Filter3":
+            TSXSend("ccdsoftCamera.FilterIndexZeroBased = 2")
+            filter_num = 2
+        elif filter == "Filter4":
+            TSXSend("ccdsoftCamera.FilterIndexZeroBased = 3")
+            filter_num = 3
+        elif filter == "Filter5":
+            TSXSend("ccdsoftCamera.FilterIndexZeroBased = 4")
+            filter_num = 4
+        elif filter == "Filter6":
+            TSXSend("ccdsoftCamera.FilterIndexZeroBased = 5")
+            filter_num = 5
+        elif filter == "Filter7":
+            TSXSend("ccdsoftCamera.FilterIndexZeroBased = 6")
+            filter_num = 6
+        elif filter == "Filter8":
+            TSXSend("ccdsoftCamera.FilterIndexZeroBased = 7")
+            filter_num = 7
+        else: # Connect to the first filter
+            print("Invalid filter name. Filter 1 selected by default")
+            return False,"Invalid filter name. Filter 1 selected by default"
+
+        if interval <= 0: # Only one observation
             # Update status
             self.status = "Taking picture..."
-            # Take a single picture
-            print("Taking picture...")
-            TSXSend("ccdsoftCamera.ExposureTime = " + str(exposure_time))
-            TSXSend("ccdsoftCamera.BinX = "+str(binning_X))
-            TSXSend("ccdsoftCamera.BinY = " + str(binning_Y))
-            TSXSend("ccdsoftCamera.TakeImage()")
+            time.sleep(1) # Wait for the status to be updated
+            # Take picture
+            success = self.__take_image()
+            if not success:
+                return False,"Unable to take picture"
+            
             print("Picture taken")
             # Update status
             self.status = "Following NORAD ID "+self.target.name+"..."
             return True,""
 
         else:
-            # Set camera settings
-            TSXSend("ccdsoftCamera.ExposureTime = " + str(exposure_time))
-            TSXSend("ccdsoftCamera.BinX = "+str(binning_X))
-            TSXSend("ccdsoftCamera.BinY = " + str(binning_Y))
             # Start a thread to take pictures
             # Update status
             self.status = "Taking pictures of NORAD ID "+self.target.name+"..."
+            time.sleep(1) # Wait for the status to be updated
+            print("Imager: " + str(exposure_time) + "s exposure through " \
+                      + TSXSend("ccdsoftCamera.szFilterName(" + filter_num + ")") + " filter.")
             self.picture_thread_stop_event = threading.Event()  #Reset the flag
-            self.picture_thread = threading.Thread(target=self.__take_picture, args=(interval))
+            self.picture_thread = threading.Thread(target=self.__take_picture_thread(interval,duration,))
             self.picture_thread.start()
 
             return True,""
 
+    def stop_taking_picture(self):
+        '''
+        \nStop taking pictures\n
+        '''
+        # Update status
+        self.status = "Following NORAD ID "+self.target.name+"..."
+
+        if self.picture_thread is None:
+            print("You are not taking pictures")
+            return False,"You are not taking pictures"
+
+        self.picture_thread_stop_event.set()
+        # Update status
+        self.status = "Following NORAD ID "+self.target.name+"..."
+        return True,""
+
+    def change_focus(self, step):
+        '''
+        \nChange the focus\n
+        '''
+        # Connect the focuser
+        TSXSend("ccdsoftCamera::focConnect()")
+        # Change focus
+        if step > 0:
+            TSXSend("ccdsoftCamera::focMoveOut("+str(step)+")")
+        else:
+            TSXSend("ccdsoftCamera::focMoveIn("+str(abs(step))+")")
+        # Disconnect the focuser
+        TSXSend("ccdsoftCamera::focDisconnect()")
+        return True,""
 
     def update_display(self):
         return self.status
@@ -286,17 +354,22 @@ class TelestoClass:
         # Read URLs from text files
         debris_urls = self.__read_url('debris_url.txt')
         satellites_urls = self.__read_url('satellites_url.txt')
-        personal_paths = self.__read_url('personal_tle.txt')
+        # Read personal TLE file
+        personal_paths = 'personal_tle.txt'
 
         # load each files then append it in a general dictionary
         print("Load debris files\n")
         self.__load_file("deb", debris_urls)
 
-        print("Load satellites files")
+        print("Load satellites files\n")
         self.__load_file("sat", satellites_urls)
 
-        print("Load personal tle")
-        self.__load_file("sat", personal_paths)
+        print("Load personal tle\n")
+        temp = load.tle_file(personal_paths, reload=True)
+        self.satellites.update({sat.model.satnum: sat for sat in temp})
+
+        print('List of satellites :', self.satellites)
+
 
         print("Loaded", len(self.satellites), "debris and satellites")
 
@@ -330,7 +403,7 @@ class TelestoClass:
                 self.satellites.update({debris.model.satnum: debris for debris in temp})
             elif url_type == "sat":
                 self.satellites.update({sat.model.satnum: sat for sat in temp})
-
+            
 
     def __compute_alt_az(self,offset=0):  
         '''
@@ -422,7 +495,7 @@ class TelestoClass:
         setTrackingRate((str(ra_rate.arcseconds.per_second),str(dec_rate.arcseconds.per_second)))
         return True
 
-    def __control_error(self):
+    def __control_error_thread(self):
         '''
         Compute the error of the telescope each 30 second, if the error is too big, 
         the telescope will raise a flag.
@@ -467,29 +540,94 @@ class TelestoClass:
                 return
         return
     
-    def __take_picture(self, interval):
+    def __take_picture_thread(self, interval, duration):
         '''
         Take a picture of the satellite each X second
 
         Input : [params]
         Ouput : None
         '''
+        # set starting time
+        start_pict = time.perf_counter()
+        if duration==0: # if duration is 0, the thread will run until the stop_event is set
+            duration_flag = False
+        else:
+            duration_flag = True
+
+
         print('Start taking picture')
-        TSXSend("ccdsoftCamera.TakeImage()")
-        print("Picture taken")
+        success = self.__take_image()
+        if not success:
+            print('Error while taking the picture')
+            return
+        print("First picture taken")   
+
+        # Thread loop, need to close the thread if the stop_event is set
         while not self.picture_thread_stop_event.is_set():
+            # initialize the timer
+            start = time.perf_counter()
             # Waiting loop, need to close the thread if the stop_event is set
-            for i in range(interval):
+            while time.perf_counter() - start < interval :
                 if self.picture_thread_stop_event.is_set():
                     return
+                if duration_flag and time.perf_counter() - start_pict > duration :
+                    print('Max duration reached, stop taking picture')
+                    self.picture_thread_stop_event.set()
+                    return
                 time.sleep(1)
-            if self.is_following:
-                TSXSend("ccdsoftCamera.TakeImage()")
-                print("Picture taken")
-            else :
-                break
+            
+            # Take the picture
+            success = self.__take_image()
+            if not success:
+                print('Error while taking the picture')
+                return
+            print("Picture taken after ", time.perf_counter() - start, "s")
+            if duration_flag :
+                print("Time left : ", duration - time.perf_counter() - start_pict, "s")
+        
         return
 
+    def __take_image():
+        '''
+        Take a picture with the camera
+
+        Input : [params]
+        Ouput : None
+        '''
+        camMesg = TSXSend("ccdsoftCamera.TakeImage()")
+
+        if camMesg == "0":
+
+            TSXSend("ccdsoftCameraImage.AttachToActiveImager()")
+            cameraImagePath = TSXSend("ccdsoftCameraImage.Path").split("/")[-1]
+
+            if cameraImagePath == "":
+                cameraImagePath = "Image not saved"
+
+            print("Image completed: " + cameraImagePath)
+            return True
+
+        else:
+            print("Error: " + camMesg)
+            return False
+
+#### TO DO ####
+'''
+## CAMERA ##
+- Use CenterBrightestObject to center the satellite (see if applicable)
+- Use the focusers : AtFocus2 # Will not be applicable, need to be set manually between each images
+
+## EXTRA ##
+- Find the minimum altitude satellite observable (tree obstruction)
+- Find maximum satellite speed observable (telescope speed or dome speed)
+- Maibe add a button to compensate the error of the telescope (if the error is too big, choice to compensate or stop following)
 
 
-    
+## TO DO ##
+- Add a txt file that contain all parameters. (minimum altitude, etc.)
+- Add a parameters to choose the time between first and last picture : take picture continuously between the two time
+- Use the session name to save the pictures in a folder with the name of the session
+- Use only one entry for binning 
+
+
+'''

@@ -9,7 +9,7 @@ import tkinter.ttk as ttk
 from functions import *
 
 class MainWindow(tk.Frame):
-    def __init__(self, master, start_callback, follow_callback, stop_follow_callback, close_callback, take_picture_callback, update_display_callback):
+    def __init__(self, master, start_callback, follow_callback, stop_follow_callback, close_callback, take_picture_callback, stop_taking_picture_callback, move_foc_callback, update_display_callback):
         super().__init__(master)
 
         self.start_callback = start_callback
@@ -17,7 +17,9 @@ class MainWindow(tk.Frame):
         self.stop_follow_callback = stop_follow_callback
         self.close_callback = close_callback
         self.take_picture_callback = take_picture_callback
+        self.stop_taking_picture_callback = stop_taking_picture_callback
         self.update_display_callback = update_display_callback
+        self.move_foc_callback = move_foc_callback
 
         self.master = master
         self.master.title("My TELESTO Control Software")
@@ -34,7 +36,7 @@ class MainWindow(tk.Frame):
         
         #update the button when window is resized
         nbr_col = 10
-        nbr_line = 15
+        nbr_line = 25
         for i in range(nbr_col):
             self.master.grid_columnconfigure(i, weight=1)
         for i in range(nbr_line):
@@ -52,7 +54,7 @@ class MainWindow(tk.Frame):
         self.start_button.grid(row=4, column=3, columnspan=4)
 
         self.close_button = ttk.Button(self.master, text="    Close", command=self.close, width=10, state="disabled")
-        self.close_button.grid(row=11, column=3, columnspan=3)
+        self.close_button.grid(row=nbr_line-1, column=3, columnspan=3)
 
         self.Norad_label = ttk.Label(self.master, text="NORAD ID :")
         self.Norad_label.grid(row=5, column=1, padx=5, pady=5)
@@ -65,32 +67,66 @@ class MainWindow(tk.Frame):
         self.stop_follow_button = ttk.Button(self.master, text="Stop following", command=self.stop_follow, state="disabled")
         self.stop_follow_button.grid(row=5, column=5)
 
-        self.take_picture_button = ttk.Button(self.master, text="Take a picture", command=self.take_picture, state="disabled")
+        # add a space between blocs
+        self.space_label = ttk.Label(self.master, text=" ")
+        self.space_label.grid(row=6, column=1, padx=5, pady=5)
+
+
+
+        self.take_picture_button = ttk.Button(self.master, text="Take picture", command=self.take_picture, state="disabled")
         self.take_picture_button.grid(row=8, column=6, columnspan=3)
+        
+        # Entry for the duration of the continuous pictures
+        self.duration_picture_label = ttk.Label(self.master, text="Duration (s) :")
+        self.duration_picture_label.grid(row=9, column=2, columnspan=2)
+        self.duration_picture = ttk.Entry(self.master, width=10)
+        self.duration_picture.grid(row=9, column=4, columnspan=2)
+
 
         self.exposure_time_label = ttk.Label(self.master, text="Exposure time (s) :")
         self.exposure_time_label.grid(row=7, column=2, columnspan=2)
         self.exposure_time = ttk.Entry(self.master, width=10)
         self.exposure_time.grid(row=7, column=4, columnspan=2)
 
-        self.binning_X_label = ttk.Label(self.master, text="Binning X :")
+        self.binning_X_label = ttk.Label(self.master, text="Binning (1/2/3) :")
         self.binning_X_label.grid(row=8, column=2, columnspan=2)
         self.binning_X = ttk.Entry(self.master, width=10)
         self.binning_X.grid(row=8, column=4, columnspan=2)
-
-        self.binning_Y_label = ttk.Label(self.master, text="Binning Y :")
-        self.binning_Y_label.grid(row=9, column=2, columnspan=2)
-        self.binning_Y = ttk.Entry(self.master, width=10)
-        self.binning_Y.grid(row=9, column=4, columnspan=2)
 
         self.interval_pict_label = ttk.Label(self.master, text="(Only for multiple picture)    Interval (s) :                      ")
         self.interval_pict_label.grid(row=10, column=1, columnspan=3)
         self.interval_pict = ttk.Entry(self.master, width=10)
         self.interval_pict.grid(row=10, column=4, columnspan=2)
 
+        self.filter_label = ttk.Label(self.master, text="Filter :")
+        self.filter_label.grid(row=11, column=2, columnspan=3, padx=5, pady=5)
+        self.filter = ttk.Combobox(self.master, width=10, state="readonly")
+        self.filter['values'] = ('Clear', 'Red', 'Green', 'Blue')  
+        self.filter.current(0)
+        self.filter.grid(row=11, column=4, columnspan=2, padx=5, pady=5)
+
+        self.frame_label = ttk.Label(self.master, text="Frame :")
+        self.frame_label.grid(row=12, column=2, columnspan=3, padx=5, pady=5)
+        self.frame = ttk.Combobox(self.master, width=10, state="readonly")
+        self.frame['values'] = ('Light', 'Bias', 'Dark', 'Flat Field')  
+        self.frame.current(0)
+        self.frame.grid(row=12, column=4, columnspan=2, padx=5, pady=5)
+
+        # Change the focus : one button plus, one button minus, one entry for the value
+        self.focus_label = ttk.Label(self.master, text="Focus step:")
+        self.focus_label.grid(row=13, column=2, columnspan=3)
+        self.focus = ttk.Entry(self.master, width=10)
+        self.focus.grid(row=13, column=5)
+        self.focus_plus_button = ttk.Button(self.master, text="Out", state="disabled")
+        self.focus_plus_button.grid(row=13, column=6)
+        self.focus_minus_button = ttk.Button(self.master, text="In", padding=(10, -15), width=2, state="disabled")
+        self.focus_minus_button.grid(row=13, column=4)
+
+
+
         # Add an inforative label that will be update by the update_display method
         self.info_label = ttk.Label(self.master, text="Waiting for the software to start", font=("Arial", 10))
-        self.info_label.grid(row=13, column=1, columnspan=7, pady=10, padx=40)
+        self.info_label.grid(row=nbr_line-2, column=1, columnspan=7, pady=10, padx=40)
         # Change slightly the font size and color for the info label
         self.info_label.configure(background="white")
 
@@ -101,22 +137,18 @@ class MainWindow(tk.Frame):
 
     def start(self):
 
-        # Change button states
-        self.close_button.configure(state="normal")
-        self.follow_button.configure(state="normal")
-        self.start_button.configure(state="disabled")
-        self.take_picture_button.configure(state="normal")
         session_name = self.session_name.get()
         try:
             # Run the callback
             self.start_callback(session_name)
         except:
             messagebox.showerror("Error", "Cannot start the software")
-            # Change button states
-            self.close_button.configure(state="disabled")
-            self.follow_button.configure(state="disabled")
-            self.start_button.configure(state="normal")
-        
+            return
+        # Change button states
+        self.close_button.configure(state="normal")
+        self.follow_button.configure(state="normal")
+        self.start_button.configure(state="disabled")
+     
     def close(self):
         try:
             # Run the callback
@@ -126,10 +158,6 @@ class MainWindow(tk.Frame):
             messagebox.showerror("Error", "Cannot close the software")
 
     def follow(self):
-        # Change button states
-        self.follow_button.configure(state="disabled")
-        self.close_button.configure(state="disabled")
-        self.stop_follow_button.configure(state="normal")
         # Get the NORAD ID
         norad = self.Norad.get()
         # Run the callback
@@ -137,56 +165,115 @@ class MainWindow(tk.Frame):
             success, error_message = self.follow_callback(norad)
             if not success:
                 messagebox.showerror("Error", error_message)
-                self.follow_button.configure(state="normal")
-                self.close_button.configure(state="normal")
-                self.stop_follow_button.configure(state="disabled")
+            else:
+                # Change button states
+                self.follow_button.configure(state="disabled")
+                self.close_button.configure(state="disabled")
+                self.stop_follow_button.configure(state="normal")
+                self.take_picture_button.configure(state="normal")
+                self.focus_plus_button.configure(state="normal")
+                self.focus_minus_button.configure(state="normal")
         except Exception as e:
             messagebox.showerror("Error", f"Cannot follow the satellite : {e}")
+
+    def stop_follow(self):
+        # Run the callback
+        try:
+            self.stop_follow_callback()
             # Change button states
             self.follow_button.configure(state="normal")
             self.close_button.configure(state="normal")
             self.stop_follow_button.configure(state="disabled")
+            self.take_picture_button.configure(state="disabled")
+            self.focus_plus_button.configure(state="disabled")
+            self.focus_minus_button.configure(state="disabled")
 
-    def stop_follow(self):
-        # Change button states
-        self.follow_button.configure(state="normal")
-        self.close_button.configure(state="normal")
-        self.stop_follow_button.configure(state="disabled")
-        # Run the callback
-        try:
-            self.stop_follow_callback()
         except:
             messagebox.showerror("Error", "Cannot stop following the satellite")
-            # Change button states
-            self.follow_button.configure(state="disabled")
-            self.close_button.configure(state="normal")
-            self.stop_follow_button.configure(state="normal")
 
     def take_picture(self):
+        # detect the button label
+        button_label = self.take_picture_button.cget("text")
         
-        # Detect if it's only one picture or multiple pictures
-        interval_pict = self.interval_pict.get()
-        if interval_pict == "":
-            interval_pict = 0
+        if button_label == "Take picture":
+            # Detect if it's only one picture or multiple pictures
+            interval_pict = self.interval_pict.get()
+            if interval_pict == "":
+                interval_pict = 0
 
-        # convert arguments to int
-        args = [self.exposure_time.get(), self.binning_X.get(), self.binning_Y.get(), interval_pict]
-        try:
-            args = [int(i) for i in args]
-        except ValueError:
-            messagebox.showerror("Error", "Exposure time and binning must be integers")
-        exposure_time, binning_X, binning_Y, interval_pict = args
-        
-        # Run the callback
-        try:
-            success, error_message = self.take_picture_callback(exposure_time, binning_X, binning_Y, interval_pict)
+            # Detect if there is a duration
+            duration = self.duration_picture.get()
+            if duration == "":
+                duration = 0
+                
+            # convert arguments to int
+            args = [self.exposure_time.get(), self.binning_X.get(), self.binning_X.get(), interval_pict, duration]
+            try:
+                args = [int(i) for i in args]
+            except ValueError:
+                messagebox.showerror("Error", "Exposure time and binning must be integers")
+                return
+            exposure_time, binning_X, binning_Y, interval_pict = args
+             
+            # Run the callback
+            try:
+                success, error_message = self.take_picture_callback(exposure_time, binning_X, binning_Y, self.filter.get(), interval_pict, duration)
+                if not success:
+                    messagebox.showerror("Error", error_message)
+                    return
+            except Exception as e:
+                messagebox.showerror("Error", f"Cannot take a picture : {e}")
+                return
+            
+            #change button label
+            self.take_picture_button.configure(text="Stop", state="normal")
+            self.take_picture_button.configure(command=self.stop_taking_picture_callback)
+        else:
+            # Stop taking picture
+            success, error_message = self.stop_taking_picture_callback()
             if not success:
                 messagebox.showerror("Error", error_message)
                 return
-        except Exception as e:
-            messagebox.showerror("Error", f"Cannot take a picture : {e}")
+            #change button label
+            self.take_picture_button.configure(text="Take picture", state="normal")
+            self.take_picture_button.configure(command=self.take_picture_callback)
 
-  
+    def move_foc_out(self):
+        # get the step
+        step = self.focus.get()
+        # Step must be an integer, positive
+        if not step.isdigit():
+            messagebox.showerror("Error", "Step must be a positive integer")
+            return
+        step = int(step)
+        if step <= 0:
+            messagebox.showerror("Error", "Step must be a positive integer")
+            return
+        
+        # Run the callback
+        try:
+            self.move_foc_callback(step)
+        except:
+            messagebox.showerror("Error", "Cannot move the focus out")
+
+    def move_foc_in(self):
+        # get the step
+        step = self.focus.get()
+        # Step must be an integer, positive
+        if not step.isdigit():
+            messagebox.showerror("Error", "Step must be a positive integer")
+            return
+        step = int(step)
+        if step <= 0:
+            messagebox.showerror("Error", "Step must be a positive integer")
+            return
+        
+        # Run the callback
+        try:
+            self.move_foc_callback(-step)
+        except:
+            messagebox.showerror("Error", "Cannot move the focus in")
+
     def update_display(self):
         # get current state of Telesto and update info_label
         info = self.update_display_callback()
@@ -194,13 +281,14 @@ class MainWindow(tk.Frame):
         
         # call update_display method again in 100 milliseconds
         self.master.after(100, self.update_display)
-        
+    
 
 
 if __name__ == '__main__':
     # Create the root window
     root = tk.Tk()
-    root.geometry("700x350")
+    root.geometry("700x500")
+    root.minsize(700, 500)
     root.maxsize(1000, 500)
     root.configure(background="#f2f2ed")
 
@@ -209,7 +297,7 @@ if __name__ == '__main__':
     Telesto = TelestoClass()
 
     # Create the main window
-    TelestoInLine = MainWindow(root, Telesto.start, Telesto.follow_satellites, Telesto.stop_following, Telesto.exit, Telesto.take_picture, Telesto.update_display)
+    TelestoInLine = MainWindow(root, Telesto.start, Telesto.follow_satellites, Telesto.stop_following, Telesto.exit, Telesto.take_picture, Telesto.stop_taking_picture, Telesto.change_focus, Telesto.update_display)
     root.mainloop()
 
 
