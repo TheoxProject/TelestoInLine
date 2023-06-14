@@ -235,7 +235,7 @@ class TelestoClass:
             TSXSend("ccdsoftCamera::filterWheelConnect()")
         # Set filter :
         filter_num = 0
-        if filter == "Filter1":
+        if filter == "Clear":
             TSXSend("ccdsoftCamera.FilterIndexZeroBased = 0")
             filter_num = 0
         elif filter == "Filter2":
@@ -261,12 +261,12 @@ class TelestoClass:
             filter_num = 7
         else: # Connect to the first filter
             print("Invalid filter name. Filter 1 selected by default")
-            return False,"Invalid filter name. Filter 1 selected by default"
+            TSXSend("ccdsoftCamera.FilterIndexZeroBased = 0")
+            filter_num = 0
 
-        if interval <= 0: # Only one observation
+        if interval == "": # Only one observation
             # Update status
             self.status = "Taking picture..."
-            time.sleep(1) # Wait for the status to be updated
             # Take picture
             success = self.__take_image()
             if not success:

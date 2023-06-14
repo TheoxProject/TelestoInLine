@@ -196,8 +196,6 @@ class MainWindow(tk.Frame):
         if button_label == "Take picture":
             # Detect if it's only one picture or multiple pictures
             interval_pict = self.interval_pict.get()
-            if interval_pict == "":
-                interval_pict = 0
 
             # Detect if there is a duration
             duration = self.duration_picture.get()
@@ -205,13 +203,13 @@ class MainWindow(tk.Frame):
                 duration = 0
                 
             # convert arguments to int
-            args = [self.exposure_time.get(), self.binning_X.get(), self.binning_X.get(), interval_pict, duration]
+            args = self.binning_X.get()
             try:
-                args = [int(i) for i in args]
+                args = int(args)
             except ValueError:
-                messagebox.showerror("Error", "Exposure time and binning must be integers")
+                messagebox.showerror("Error", "binning must be integers")
                 return
-            exposure_time, binning_X, binning_Y, interval_pict, duration = args
+            exposure_time, binning_X, binning_Y, interval_pict, duration = self.exposure_time.get(), args, args, interval_pict, duration
              
             # Run the callback
             try:
