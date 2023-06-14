@@ -5,6 +5,7 @@ import tkinter as tk
 from ttkthemes import ThemedStyle
 from tkinter import messagebox
 import tkinter.ttk as ttk
+import winsound
 # Personnal TelestoClass imports
 from functions import *
 
@@ -57,15 +58,12 @@ class MainWindow(tk.Frame):
         self.close_button.grid(row=nbr_line-1, column=3, columnspan=3)
 
         self.Norad_label = ttk.Label(self.master, text="NORAD ID :")
-        self.Norad_label.grid(row=5, column=1, padx=5, pady=5)
+        self.Norad_label.grid(row=5, column=2, padx=5, pady=5)
         self.Norad = ttk.Entry(self.master, width=10)
-        self.Norad.grid(row=5, column=2, padx=5, pady=5)
+        self.Norad.grid(row=5, column=3, padx=5, pady=5)
         self.follow_button = ttk.Button(self.master, text="Follow satellite", command=self.follow, state="disabled")
-        self.follow_button.grid(row=5, column=3)
+        self.follow_button.grid(row=5, column=4)
         
-
-        self.stop_follow_button = ttk.Button(self.master, text="Stop following", command=self.stop_follow, state="disabled")
-        self.stop_follow_button.grid(row=5, column=5)
 
         # add a space between blocs
         self.space_label = ttk.Label(self.master, text=" ")
@@ -148,6 +146,8 @@ class MainWindow(tk.Frame):
         self.close_button.configure(state="normal")
         self.follow_button.configure(state="normal")
         self.start_button.configure(state="disabled")
+        self.focus_plus_button.configure(state="normal")
+        self.focus_minus_button.configure(state="normal")
      
     def close(self):
         try:
@@ -158,38 +158,36 @@ class MainWindow(tk.Frame):
             messagebox.showerror("Error", "Cannot close the software")
 
     def follow(self):
-        # Get the NORAD ID
-        norad = self.Norad.get()
-        # Run the callback
-        try:
-            success, error_message = self.follow_callback(norad)
-            if not success:
-                messagebox.showerror("Error", error_message)
-            else:
+        # detect the button label
+        if self.follow_button.cget("text") == "Follow satellite":
+
+            # Get the NORAD ID
+            norad = self.Norad.get()
+            # Run the callback
+            try:
+                success, error_message = self.follow_callback(norad)
+                if not success:
+                    messagebox.showerror("Error", error_message)
+                else:
+                    # Change button states
+                    self.close_button.configure(state="disabled")
+                    self.take_picture_button.configure(state="normal")
+                    # Change the button label
+                    self.follow_button.configure(text="Stop following")
+            except Exception as e:
+                messagebox.showerror("Error", f"Cannot follow the satellite : {e}")
+        else:
+            try:
+                self.stop_follow_callback()
                 # Change button states
-                self.follow_button.configure(state="disabled")
-                self.close_button.configure(state="disabled")
-                self.stop_follow_button.configure(state="normal")
-                self.take_picture_button.configure(state="normal")
-                self.focus_plus_button.configure(state="normal")
-                self.focus_minus_button.configure(state="normal")
-        except Exception as e:
-            messagebox.showerror("Error", f"Cannot follow the satellite : {e}")
+                self.follow_button.configure(state="normal")
+                self.close_button.configure(state="normal")
+                self.take_picture_button.configure(state="disabled")
+                # Change the button label
+                self.follow_button.configure(text="Follow satellite")
 
-    def stop_follow(self):
-        # Run the callback
-        try:
-            self.stop_follow_callback()
-            # Change button states
-            self.follow_button.configure(state="normal")
-            self.close_button.configure(state="normal")
-            self.stop_follow_button.configure(state="disabled")
-            self.take_picture_button.configure(state="disabled")
-            self.focus_plus_button.configure(state="disabled")
-            self.focus_minus_button.configure(state="disabled")
-
-        except:
-            messagebox.showerror("Error", "Cannot stop following the satellite")
+            except:
+                messagebox.showerror("Error", "Cannot stop following the satellite")
 
     def take_picture(self):
         # detect the button label
@@ -213,7 +211,7 @@ class MainWindow(tk.Frame):
             except ValueError:
                 messagebox.showerror("Error", "Exposure time and binning must be integers")
                 return
-            exposure_time, binning_X, binning_Y, interval_pict = args
+            exposure_time, binning_X, binning_Y, interval_pict, duration = args
              
             # Run the callback
             try:
@@ -276,9 +274,25 @@ class MainWindow(tk.Frame):
 
     def update_display(self):
         # get current state of Telesto and update info_label
-        info = self.update_display_callback()
+        info, tracking, tracking_msg, taking_picture  = self.update_display_callback()
         self.info_label.configure(text=info)
         
+        # change button states
+        if not tracking:
+            self.follow_button.configure(state="normal")
+            self.follow_button.configure(text="Follow satellite")
+            self.close_button.configure(state="normal")
+            self.take_picture_button.configure(state="disabled")
+            if tracking_msg != "":
+                # make a noise
+                winsound.Beep(1000, 1000)
+                messagebox.showerror("Error : ", tracking_msg)
+
+        if not taking_picture:
+            self.take_picture_button.configure(text="Take picture", state="normal")
+            self.take_picture_button.configure(command=self.take_picture)
+
+
         # call update_display method again in 100 milliseconds
         self.master.after(100, self.update_display)
     

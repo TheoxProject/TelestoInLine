@@ -29,6 +29,8 @@ class TelestoClass:
         self.target = None
         self.is_following = False
         self.has_started = False
+        self.tracking_msg = ""
+        self.picture_param_thread = None
         #Threading
         self.tracking_error_thread = None
         self.error_thread_stop_event = threading.Event()
@@ -168,7 +170,7 @@ class TelestoClass:
 
         self.target = self.satellites[int(args[0])]
         # Update status
-        self.status = "Following NORAD ID "+self.target.name+"..."
+        self.status = "Following "+self.target.name+"..."
 
         if not self.__follow_sat_using_rate():
             return False,"Target will be too low in the sky. Please choose another target"
@@ -272,18 +274,18 @@ class TelestoClass:
             
             print("Picture taken")
             # Update status
-            self.status = "Following NORAD ID "+self.target.name+"..."
+            self.status = "Following "+str(self.target.name)+"..."
             return True,""
 
         else:
             # Start a thread to take pictures
             # Update status
-            self.status = "Taking pictures of NORAD ID "+self.target.name+"..."
-            time.sleep(1) # Wait for the status to be updated
+            self.status = "Taking pictures of "+str(self.target.name)+"..."
             print("Imager: " + str(exposure_time) + "s exposure through " \
-                      + TSXSend("ccdsoftCamera.szFilterName(" + filter_num + ")") + " filter.")
+                      + TSXSend("ccdsoftCamera.szFilterName(" + str(filter_num) + ")") + " filter.")
+            self.picture_param_thread = [interval, duration]
             self.picture_thread_stop_event = threading.Event()  #Reset the flag
-            self.picture_thread = threading.Thread(target=self.__take_picture_thread(interval,duration,))
+            self.picture_thread = threading.Thread(target=self.__take_picture_thread)
             self.picture_thread.start()
 
             return True,""
@@ -301,7 +303,7 @@ class TelestoClass:
 
         self.picture_thread_stop_event.set()
         # Update status
-        self.status = "Following NORAD ID "+self.target.name+"..."
+        self.status = "Following "+self.target.name+"..."
         return True,""
 
     def change_focus(self, step):
@@ -320,7 +322,19 @@ class TelestoClass:
         return True,""
 
     def update_display(self):
-        return self.status
+        '''
+        \nReturn information about the state of the sofware\n
+        '''
+        # check if thread is alive
+        if self.picture_thread is not None:
+            if self.picture_thread.is_alive():
+                picture_thread = True
+
+        tracking_msg = self.tracking_msg
+        if self.tracking_msg != "":
+            self.tracking_msg = ""
+
+        return self.status, self.is_following, tracking_msg, picture_thread
 
 
 
@@ -367,8 +381,6 @@ class TelestoClass:
         print("Load personal tle\n")
         temp = load.tle_file(personal_paths, reload=True)
         self.satellites.update({sat.model.satnum: sat for sat in temp})
-
-        print('List of satellites :', self.satellites)
 
 
         print("Loaded", len(self.satellites), "debris and satellites")
@@ -518,8 +530,11 @@ class TelestoClass:
             if alt.degrees <= 10:
                 print("Target will be too low in sky. Stop following\n")
                 self.is_following = False
+                self.tracking_msg = 'Target will be too low in sky. Stop following'
                 setTrackingRate(switch=False) # stop tracking
-
+                # Stop picture thread
+                self.picture_thread_stop_event.set()
+                self.status = "Ready"
                 return
             
             # Compute the mean square error
@@ -536,17 +551,24 @@ class TelestoClass:
             if error > threshold:
                 print('Error too big, stop following')
                 self.is_following = False
+                self.tracking_msg = 'Error too big, stop following'
+                self.picture_thread_stop_event.set()
                 setTrackingRate(switch=False) # stop tracking
+                self.status = "Ready"
                 return
+        self.status = "Ready"
         return
     
-    def __take_picture_thread(self, interval, duration):
+    def __take_picture_thread(self):
         '''
         Take a picture of the satellite each X second
 
         Input : [params]
         Ouput : None
         '''
+        # Get parameters
+        interval, duration = self.picture_param_thread
+
         # set starting time
         start_pict = time.perf_counter()
         if duration==0: # if duration is 0, the thread will run until the stop_event is set
@@ -559,6 +581,7 @@ class TelestoClass:
         success = self.__take_image()
         if not success:
             print('Error while taking the picture')
+            self.status = "Following NORAD ID "+str(self.target.name)+"..."
             return
         print("First picture taken")   
 
@@ -569,10 +592,12 @@ class TelestoClass:
             # Waiting loop, need to close the thread if the stop_event is set
             while time.perf_counter() - start < interval :
                 if self.picture_thread_stop_event.is_set():
+                    self.status = "Following "+str(self.target.name)+"..."
                     return
                 if duration_flag and time.perf_counter() - start_pict > duration :
                     print('Max duration reached, stop taking picture')
                     self.picture_thread_stop_event.set()
+                    self.status = "Following "+str(self.target.name)+"..."
                     return
                 time.sleep(1)
             
@@ -580,14 +605,15 @@ class TelestoClass:
             success = self.__take_image()
             if not success:
                 print('Error while taking the picture')
+                self.status = "Following "+str(self.target.name)+"..."
                 return
             print("Picture taken after ", time.perf_counter() - start, "s")
             if duration_flag :
-                print("Time left : ", duration - time.perf_counter() - start_pict, "s")
-        
+                print("Time left : ", duration - (time.perf_counter() - start_pict), "s")
+        self.status = "Following "+str(self.target.name)+"..."
         return
 
-    def __take_image():
+    def __take_image(self):
         '''
         Take a picture with the camera
 
@@ -614,20 +640,16 @@ class TelestoClass:
 #### TO DO ####
 '''
 ## CAMERA ##
-- Use CenterBrightestObject to center the satellite (see if applicable)
-- Use the focusers : AtFocus2 # Will not be applicable, need to be set manually between each images
 
 ## EXTRA ##
 - Find the minimum altitude satellite observable (tree obstruction)
 - Find maximum satellite speed observable (telescope speed or dome speed)
-- Maibe add a button to compensate the error of the telescope (if the error is too big, choice to compensate or stop following)
+- Maybe add a button to compensate the error of the telescope (if the error is too big, choice to compensate or stop following)
 
 
 ## TO DO ##
 - Add a txt file that contain all parameters. (minimum altitude, etc.)
-- Add a parameters to choose the time between first and last picture : take picture continuously between the two time
 - Use the session name to save the pictures in a folder with the name of the session
-- Use only one entry for binning 
 
 
 '''
